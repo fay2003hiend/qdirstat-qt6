@@ -11,7 +11,7 @@
 
 TEMPLATE	 = app
 
-QT		+= widgets
+QT		+= widgets core5compat
 # Commented out to get -O2 optimization by default (issue #160)
 # CONFIG	+= debug
 DEPENDPATH	+= .
