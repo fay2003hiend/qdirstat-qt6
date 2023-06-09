@@ -141,7 +141,7 @@ void DirTreeModel::setSlowUpdate( bool slow )
     _updateTimer.setInterval( _slowUpdate ? _slowUpdateMillisec : _updateTimerMillisec );
 
     if ( slow )
-	logInfo() << "Display update every " << _updateTimer.interval() << " millisec" << endl;
+	logInfo() << "Display update every " << _updateTimer.interval() << " millisec" << Qt::endl;
 }
 
 
@@ -182,13 +182,13 @@ void DirTreeModel::clear()
     {
 	beginResetModel();
 
-	// logDebug() << "After beginResetModel()" << endl;
+	// logDebug() << "After beginResetModel()" << Qt::endl;
 	// dumpPersistentIndexList();
 
 	_tree->clear();
 	endResetModel();
 
-	// logDebug() << "After endResetModel()" << endl;
+	// logDebug() << "After endResetModel()" << Qt::endl;
 	// dumpPersistentIndexList();
     }
 }
@@ -208,7 +208,7 @@ void DirTreeModel::openUrl( const QString & url )
 
 void DirTreeModel::readPkg( const PkgFilter & pkgFilter )
 {
-    // logDebug() << "Reading " << pkgFilter << endl;
+    // logDebug() << "Reading " << pkgFilter << Qt::endl;
     CHECK_PTR( _tree );
 
     if ( _tree->root() &&  _tree->root()->hasChildren() )
@@ -223,7 +223,7 @@ void DirTreeModel::loadIcons()
 {
     if ( _treeIconDir.isEmpty() )
     {
-	logWarning() << "No tree icons" << endl;
+	logWarning() << "No tree icons" << Qt::endl;
 	return;
     }
 
@@ -265,8 +265,8 @@ FileInfo * DirTreeModel::findChild( DirInfo * parent, int childNo ) const
     if ( childNo < 0 || childNo >= childrenList.size() )
     {
 	logError() << "Child #" << childNo << " is out of range: 0.."
-		   << childrenList.size()-1 << " children for "
-		   << parent << endl;
+		   << static_cast<int>(childrenList.size())-1 << " children for "
+		   << parent << Qt::endl;
 	Debug::dumpChildrenList( parent, childrenList );
 
 	return 0;
@@ -295,7 +295,7 @@ int DirTreeModel::rowNumber( FileInfo * child ) const
 	logError() << "Child " << child
 		   << " (" << (void *) child << ")"
 		   << " not found in \""
-		   << child->parent() << "\"" << endl;
+		   << child->parent() << "\"" << Qt::endl;
 
 	Debug::dumpDirectChildren( child->parent() );
     }
@@ -344,7 +344,7 @@ int DirTreeModel::rowCount( const QModelIndex & parentIndex ) const
 
     if ( item->toDirInfo()->isLocked() )
     {
-	// logDebug() << item << " is locked - returning 0" << endl;
+	// logDebug() << item << " is locked - returning 0" << Qt::endl;
 	return 0;
     }
 
@@ -396,7 +396,7 @@ int DirTreeModel::rowCount( const QModelIndex & parentIndex ) const
 	// missing enum values
     }
 
-    // logDebug() << dirName << ": " << count << endl;
+    // logDebug() << dirName << ": " << count << Qt::endl;
     return count;
 }
 
@@ -426,7 +426,7 @@ QVariant DirTreeModel::data( const QModelIndex & index, int role ) const
 
 		if ( item && item->isDirInfo() )
 		{
-		    // logDebug() << "Touching " << col << "\tof " << item << endl;
+		    // logDebug() << "Touching " << col << "\tof " << item << Qt::endl;
 		    item->toDirInfo()->touch();
 		}
 
@@ -436,7 +436,7 @@ QVariant DirTreeModel::data( const QModelIndex & index, int role ) const
 	case Qt::ForegroundRole: // Text color
 	    {
 		if ( item->isIgnored() || item->isAttic() )
-		    return qAppPalette().brush( QPalette::Disabled, QPalette::Foreground );
+		    return qAppPalette().brush( QPalette::PlaceholderText );
 
 		if ( item->isDir() )
 		{
@@ -537,7 +537,7 @@ Qt::ItemFlags DirTreeModel::flags( const QModelIndex & index ) const
 	baseFlags |= Qt::ItemNeverHasChildren;
 #endif
 
-    // logDebug() << "Flags for " << index << endl;
+    // logDebug() << "Flags for " << index << Qt::endl;
     DataColumn col = DataColumns::fromViewCol( index.column() );
 
     switch ( col )
@@ -594,7 +594,7 @@ QModelIndex DirTreeModel::parent( const QModelIndex & index ) const
 	return QModelIndex();
 
     int row = rowNumber( parent );
-    // logDebug() << "Parent of " << child << " is " << parent << " #" << row << endl;
+    // logDebug() << "Parent of " << child << " is " << parent << " #" << row << Qt::endl;
 
     return createIndex( row, 0, parent );
 }
@@ -604,9 +604,9 @@ void DirTreeModel::sort( int column, Qt::SortOrder order )
 {
     logDebug() << "Sorting by " << static_cast<DataColumn>( column )
 	       << ( order == Qt::AscendingOrder ? " ascending" : " descending" )
-	       << endl;
+	       << Qt::endl;
 
-    // logDebug() << "Before layoutAboutToBeChanged()" << endl;
+    // logDebug() << "Before layoutAboutToBeChanged()" << Qt::endl;
     // dumpPersistentIndexList();
 
     emit layoutAboutToBeChanged();
@@ -617,7 +617,7 @@ void DirTreeModel::sort( int column, Qt::SortOrder order )
     updatePersistentIndexes();
     emit layoutChanged();
 
-    // logDebug() << "After layoutChanged()" << endl;
+    // logDebug() << "After layoutChanged()" << Qt::endl;
     // dumpPersistentIndexList();
 }
 
@@ -630,7 +630,7 @@ void DirTreeModel::busyDisplay()
     emit layoutAboutToBeChanged();
 
     _sortCol = NameCol;
-    // logDebug() << "Sorting by " << _sortCol << " during reading" << endl;
+    // logDebug() << "Sorting by " << _sortCol << " during reading" << Qt::endl;
 
     updatePersistentIndexes();
     emit layoutChanged();
@@ -642,7 +642,7 @@ void DirTreeModel::idleDisplay()
     emit layoutAboutToBeChanged();
 
     _sortCol = PercentNumCol;
-    // logDebug() << "Sorting by " << _sortCol << " after reading is finished" << endl;
+    // logDebug() << "Sorting by " << _sortCol << " after reading is finished" << Qt::endl;
 
     updatePersistentIndexes();
     emit layoutChanged();
@@ -659,7 +659,7 @@ QModelIndex DirTreeModel::modelIndex( FileInfo * item, int column ) const
     else
     {
 	int row = rowNumber( item );
-	// logDebug() << item << " is row #" << row << " of " << item->parent() << endl;
+	// logDebug() << item << " is row #" << row << " of " << item->parent() << Qt::endl;
 	return row < 0 ? QModelIndex() : createIndex( row, column, item );
     }
 }
@@ -1035,13 +1035,13 @@ QVariant DirTreeModel::columnIcon( FileInfo * item, int col ) const
 
 void DirTreeModel::readJobFinished( DirInfo * dir )
 {
-    // logDebug() << dir << endl;
+    // logDebug() << dir << Qt::endl;
     delayedUpdate( dir );
 
     if ( anyAncestorBusy( dir ) )
     {
 	if  ( dir && ! dir->isMountPoint() )
-	    logDebug() << "Ancestor busy - ignoring readJobFinished for " << dir << endl;
+	    logDebug() << "Ancestor busy - ignoring readJobFinished for " << dir << Qt::endl;
     }
     else
     {
@@ -1069,17 +1069,17 @@ bool DirTreeModel::anyAncestorBusy( FileInfo * item ) const
 
 void DirTreeModel::newChildrenNotify( DirInfo * dir )
 {
-    // logDebug() << dir << endl;
+    // logDebug() << dir << Qt::endl;
 
     if ( ! dir )
     {
-	logError() << "NULL DirInfo *" << endl;
+	logError() << "NULL DirInfo *" << Qt::endl;
 	return;
     }
 
     if ( ! dir->isTouched() && dir != _tree->root() && dir != _tree->firstToplevel() )
     {
-	// logDebug() << "Remaining silent about untouched dir " << dir << endl;
+	// logDebug() << "Remaining silent about untouched dir " << dir << Qt::endl;
 	return;
     }
 
@@ -1089,7 +1089,7 @@ void DirTreeModel::newChildrenNotify( DirInfo * dir )
 
     if ( count > 0 )
     {
-	// logDebug() << "Notifying view about " << count << " new children of " << dir << endl;
+	// logDebug() << "Notifying view about " << count << " new children of " << dir << Qt::endl;
 
 	dir->lock();
 	beginInsertRows( index, 0, count - 1 );
@@ -1129,7 +1129,7 @@ void DirTreeModel::delayedUpdate( DirInfo * dir )
 
 void DirTreeModel::sendPendingUpdates()
 {
-    // logDebug() << "Sending " << _pendingUpdates.size() << " updates" << endl;
+    // logDebug() << "Sending " << _pendingUpdates.size() << " updates" << Qt::endl;
 
     foreach ( DirInfo * dir, _pendingUpdates )
     {
@@ -1158,7 +1158,7 @@ void DirTreeModel::dataChangedNotify( DirInfo * dir )
 
 	emit dataChanged( topLeft, bottomRight, roles );
 #endif
-	// logDebug() << "Data changed for " << dir << endl;
+	// logDebug() << "Data changed for " << dir << Qt::endl;
 
 	// If the view is still interested in this dir, it will fetch data, and
 	// then the dir will be touched again. For all we know now, this dir
@@ -1186,7 +1186,7 @@ void DirTreeModel::dumpPersistentIndexList() const
 {
     QModelIndexList persistentList = persistentIndexList();
 
-    logDebug() << persistentList.size() << " persistent indexes" << endl;
+    logDebug() << static_cast<int>(persistentList.size()) << " persistent indexes" << Qt::endl;
 
     for ( int i=0; i < persistentList.size(); ++i )
     {
@@ -1198,7 +1198,7 @@ void DirTreeModel::dumpPersistentIndexList() const
 	logDebug() << "#" << i
 		   << " Persistent index "
 		   << index
-		   << endl;
+		   << Qt::endl;
     }
 }
 
@@ -1221,7 +1221,7 @@ void DirTreeModel::updatePersistentIndexes()
 		       << " col " << oldIndex.column()
 		       << " row " << oldIndex.row()
 		       << " --> " << newIndex.row()
-		       << endl;
+		       << Qt::endl;
 #endif
 	    changePersistentIndex( oldIndex, newIndex );
 	}
@@ -1233,14 +1233,14 @@ void DirTreeModel::beginRemoveRows( const QModelIndex & parent, int first, int l
 {
     if ( _removingRows )
     {
-	logError() << "Removing rows already in progress" << endl;
+	logError() << "Removing rows already in progress" << Qt::endl;
 	return;
     }
 
 
     if ( ! parent.isValid() )
     {
-	logError() << "Invalid QModelIndex" << endl;
+	logError() << "Invalid QModelIndex" << Qt::endl;
 	return;
     }
 
@@ -1261,7 +1261,7 @@ void DirTreeModel::endRemoveRows()
 
 void DirTreeModel::deletingChild( FileInfo * child )
 {
-    logDebug() << "Deleting child " << child << endl;
+    logDebug() << "Deleting child " << child << Qt::endl;
 
     if ( child->parent() &&
 	 ( child->parent() == _tree->root() ||
@@ -1269,7 +1269,7 @@ void DirTreeModel::deletingChild( FileInfo * child )
     {
 	QModelIndex parentIndex = modelIndex( child->parent(), 0 );
 	int row = rowNumber( child );
-	logDebug() << "beginRemoveRows for " << child << " row " << row << endl;
+	logDebug() << "beginRemoveRows for " << child << " row " << row << Qt::endl;
 	beginRemoveRows( parentIndex, row, row );
     }
 
@@ -1285,7 +1285,7 @@ void DirTreeModel::childDeleted()
 
 void DirTreeModel::clearingSubtree( DirInfo * subtree )
 {
-    logDebug() << "Deleting all children of " << subtree << endl;
+    logDebug() << "Deleting all children of " << subtree << Qt::endl;
 
     if ( subtree == _tree->root() || subtree->isTouched() )
     {
@@ -1294,7 +1294,7 @@ void DirTreeModel::clearingSubtree( DirInfo * subtree )
 
 	if ( count > 0 )
 	{
-	    logDebug() << "beginRemoveRows for " << subtree << " row 0 to " << count - 1 << endl;
+	    logDebug() << "beginRemoveRows for " << subtree << " row 0 to " << count - 1 << Qt::endl;
 	    beginRemoveRows( subtreeIndex, 0, count - 1 );
 	}
     }
@@ -1325,7 +1325,7 @@ void DirTreeModel::invalidatePersistent( FileInfo * subtree,
 	    if ( item != subtree || includeParent )
 	    {
 #if 1
-		logDebug() << "Invalidating " << index << endl;
+		logDebug() << "Invalidating " << index << Qt::endl;
 #endif
 		changePersistentIndex( index, QModelIndex() );
 	    }
@@ -1360,7 +1360,7 @@ void DirTreeModel::refreshSelected()
 
     if ( sel && sel->isDirInfo() )
     {
-	logDebug() << "Refreshing " << sel << endl;
+	logDebug() << "Refreshing " << sel << Qt::endl;
 	busyDisplay();
 	FileInfoSet refreshSet;
 	refreshSet << sel;
@@ -1369,7 +1369,7 @@ void DirTreeModel::refreshSelected()
     }
     else
     {
-	logWarning() << "NOT refreshing " << sel << endl;
+	logWarning() << "NOT refreshing " << sel << Qt::endl;
     }
 }
 

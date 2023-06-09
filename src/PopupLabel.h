@@ -89,7 +89,7 @@ namespace QDirStat
 	// Event handlers (all inherited from QWidget)
 
 	virtual void mousePressEvent( QMouseEvent * event ) Q_DECL_OVERRIDE;
-	virtual void enterEvent( QEvent * event ) Q_DECL_OVERRIDE;
+	virtual void enterEvent( QEvent * event );
 	virtual void leaveEvent( QEvent * event ) Q_DECL_OVERRIDE;
 
 

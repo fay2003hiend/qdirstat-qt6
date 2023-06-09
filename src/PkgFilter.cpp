@@ -9,7 +9,7 @@
 #include "PkgFilter.h"
 #include "Logger.h"
 #include "Exception.h"
-
+#include <QRegularExpression>
 
 using namespace QDirStat;
 
@@ -53,12 +53,12 @@ PkgFilter::PkgFilter( const QRegExp & regexp ):
 void PkgFilter::normalizePattern()
 {
     QString oldPattern = _pattern;
-    _pattern.remove( QRegExp( "^Pkg:/?", Qt::CaseInsensitive ) );
-    _pattern.remove( QRegExp( "/.*$" ) );
+    _pattern.remove( QRegularExpression( "^Pkg:/?", QRegularExpression::CaseInsensitiveOption ) );
+    _pattern.remove( QRegularExpression( "/.*$" ) );
 
     if ( _pattern != oldPattern )
     {
-        logInfo() << "Normalizing pkg pattern to \"" << _pattern << "\"" << endl;
+        logInfo() << "Normalizing pkg pattern to \"" << _pattern << "\"" << Qt::endl;
         _regexp.setPattern( _pattern );
     }
 }
@@ -73,7 +73,7 @@ void PkgFilter::guessFilterMode()
     else if ( _pattern.startsWith( "=" ) )
     {
         _filterMode = ExactMatch;
-        _pattern.remove( QRegExp( "^=" ) );
+        _pattern.remove( QRegularExpression( "^=" ) );
         _regexp.setPattern( _pattern );
     }
     else if ( _pattern.contains( ".*" ) ||
@@ -98,7 +98,7 @@ void PkgFilter::guessFilterMode()
 #if 0
     logDebug() << "using filter mode " << toString( _filterMode )
                << " from \"" << _pattern << "\""
-               << endl;
+               << Qt::endl;
 #endif
 }
 
@@ -111,14 +111,14 @@ bool PkgFilter::matches( const QString & str ) const
         case StartsWith: return str.startsWith( _pattern, Qt::CaseInsensitive );
         case ExactMatch: return QString::compare( str, _pattern, Qt::CaseInsensitive ) == 0;
         case Wildcard:   return _regexp.exactMatch( str );
-        case RegExp:     return str.contains( _regexp );
+        case RegExp:     return str.contains( QRegularExpression(_regexp.pattern()) );
         case SelectAll:  return true;
         case Auto:
-            logWarning() << "Unexpected filter mode 'Auto' - assuming 'Contains'" << endl;
+            logWarning() << "Unexpected filter mode 'Auto' - assuming 'Contains'" << Qt::endl;
             return str.contains( _pattern );
     }
 
-    logError() << "Undefined filter mode " << (int) _filterMode << endl;
+    logError() << "Undefined filter mode " << (int) _filterMode << Qt::endl;
     return false;
 }
 
