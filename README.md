@@ -4,20 +4,22 @@
 Qt-based directory statistics: KDirStat without any KDE -- from the author of
 the original KDirStat.
 
-(c) 2015-2022 Stefan Hundhammer <Stefan.Hundhammer@gmx.de>
+(c) 2015-2024 Stefan Hundhammer <Stefan.Hundhammer@gmx.de>
 
-Target Platforms: Linux, BSD, Unix-like systems
+Target Platforms: Linux, BSD, Unix-like systems; macOS
 
 License: GPL V2
 
-Updated: 2022-06-30
+Updated: 2024-04-25
 
 
 ## Screenshot
 
 [<img width="900" src="https://github.com/shundhammer/qdirstat/blob/master/screenshots/QDirStat-main-win.png">](https://raw.githubusercontent.com/shundhammer/qdirstat/master/screenshots/QDirStat-main-win.png)
 
-_Main window screenshot - notice the multi-selection in the tree and the treemap_
+_Main window screenshot: Tree view (upper half), treemap (below), details panel (right)._
+
+_Notice the multi-selection in the tree and the treemap._
 
 
 ## Overview
@@ -25,10 +27,17 @@ _Main window screenshot - notice the multi-selection in the tree and the treemap
 QDirStat is a graphical application to show where your disk space has gone and
 to help you to clean it up.
 
+It shows the total size of directories and of their files both in a traditional
+tree view and in a colored [treemap graphics](doc/Treemap.md) where a large
+file is shown as a large rectangle, and small files are shown as small
+rectangles. Click on it, and you will see where in the tree the file is, and
+you can instantly move it to the trash if you like. The color corresponds to
+the file type: Images, videos or whatever.
+
 This is a Qt-only port of the old Qt3/KDE3-based KDirStat, now based on the
 latest Qt 5. It does not need any KDE libs or infrastructure. It runs on every
-X11-based desktop on Linux, BSD and other Unix-like systems and of course in a
-Docker container.
+X11-based desktop on Linux, BSD and other Unix-like systems, and in a Docker
+container.
 
 QDirStat has a number of new features compared to KDirStat. To name a few:
 
@@ -66,7 +75,7 @@ See section [_New Features_](#new-features) for more details.
 1. [Related Software](#related-software): KDirStat, WinDirStat, K4DirStat and more
 1. [Motivation / Rant: Why?](#motivation--rant-why)
 1. [Features](#features)
-1. [MacOS X Compatibility](#macos-x-compatibility)
+1. [macOS Compatibility](#macos-compatibility)
 1. [Windows Compatibility](#windows-compatibility)
 1. [Ready-made Packages](#ready-made-packages)
 1. [QDirStat Docker Containers](#qdirstat-docker-containers)
@@ -115,7 +124,7 @@ You can donate any amount of your choice via PayPal:
 
 ## Latest Stable Release
 
-**QDirStat V1.8.1**
+**QDirStat V1.9**
 
 See the [release announcement](https://github.com/shundhammer/qdirstat/releases).
 
@@ -125,112 +134,101 @@ Download installable binary packages for various Linux distributions here:
 
 ## Latest News
 
+- 2024-04-25
 
-- 2022-06-30 **New stable release: 1.8.1**
+  - Added a new article on [QDirStat Font Size](https://github.com/shundhammer/qdirstat/issues/268).
+
+
+- 2024-03-01
+
+  - Extended the cache file format to also include UID, GID and permissions,
+    and also improved the formatting to make it better human readable.
+
+    See also [GitHub issue #265](https://github.com/shundhammer/qdirstat/issues/265).
+
+    This new cache file format 2.0 is now the default, but the Perl
+    `qdirstat-cache-writer` still supports writing the old format without those
+    new fields to make the cache files a bit smaller: Use the `-1` command line
+    option.
+
+    Cache files in the old format 1.0 can still be read, of course.
+
+
+- 2024-02-13
+
+  - **New: macOS binaries for QDirStat**
+
+    Jesus Herrera Arroyo <chuy.max@gmail.com>
+    contacted me to ask for my approval to provide binaries of QDirStat for
+    macOS. I answered:
+
+    > Sure, go ahead! But since I have no clue about macOS X, I'll have to
+    > redirect any users having macOS-specific problems to your repo's issue
+    > tracker.
+
+    So here is his new GitHub repo for those binaries:
+
+    https://github.com/jesusha123/qdirstat-macos
+
+    Go to _Releases_ at the right side panel.
+
+    Also expect them on Homebrew (work in progress).
+
+    I welcome this very much; there have been some tech-savvy users who built
+    their own QDirStat for macOS since the project started in late 2015, but
+    they were always very few, and it's not something for a casual user to do
+    that. The situation should greatly improve with pre-built platform binaries
+    for macOS, making QDirStat much more approachable on that platform.
+
+    As usual with all binary distributions, caveats apply: You need to have
+    trust in the distributor; no matter if it's a Linux distribution like SUSE,
+    Ubuntu, Fedora / Red Hat or all the others out there, or an enthusiastic
+    individual like Jesus Herrera. I am optimistic that he deserves that trust.
+
+    If you don't have that trust, by all means go ahead and build it yourself
+    from the sources, even if that is considerably more work, and it needs some
+    technical expertise about how to build software in general, and about the
+    target platform (macOS in this case) in particular.
+
+
+- 2024-01-15
+
+  - Just one day after the stable release, pull requests for missing include
+    files keep trickling in.
+
+    Some time ago, I cleaned up includes, throwing out the ones that I was sure
+    were unneeded; of course recompiling after every step. They were all
+    unneeded on Linux with GCC, but it turns out that at least some of them
+    were indeed needed on other platforms. Probably recursive includes are
+    different on those platforms.
+
+    I am collecting all those pull requests and merging (cherry-picking) them
+    to the `stable-1.9` branch. So if V1.9 does not build on your platform with
+    the official release tagged `1.9`, please use that `stable-1.9` branch. If
+    that still doesn't help - more pull requests are welcome.
+
+    Sorry for the inconvenience.
+
+
+- 2024-01-14 **New stable release: 1.9**
 
   **Summary:**
 
-  - New treemap interaction: Middle click in the treemap now highlights the
-    parent directories of the clicked item, and everything outside that branch
-    is dimmed.
+  - Greatly improved the visual appearance of the treemap thanks to @Lithopsian
 
-    [<img width=300 src="https://user-images.githubusercontent.com/11538225/135117590-8a410ea7-847a-4b59-8c36-a2656aa63743.png">](https://user-images.githubusercontent.com/11538225/135117590-8a410ea7-847a-4b59-8c36-a2656aa63743.png)
+  - Dominant (very large) items are now highlighted in bold font in the tree view
+
+  - New "Find" function in the scanned directory tree
+
+  - Added support for bookmarks
+
+  - New documentation to explain the treemap
 
   - Some small improvements
 
   - Bug fixes
 
-
-  **Details:**
-
-  - A middle click now outlines an item's parent, grandparent etc. directories
-    in the treemap.
-
-    Middle-click it again or click outside the highlighted area to remove the
-    highlight.
-
-    You can use the middle click pretty much like a left click, including
-    Shift- and Ctrl-click to extend the selection.
-
-    See [GitHub issue #181](https://github.com/shundhammer/qdirstat/issues/181)
-    for a screenshot and more details.
-
-  - No longer drawing additional lines in the treemap by default if there is
-    low contrast between individual treemap tiles; that only makes the treemap
-    display uglier for little benefit.
-
-    You can still switch it on with the `EnforceContrast` setting in the config
-    file (`~/.config/QDirStat/QDirStat.conf`).
-
-  - Don't show inactive (unmounted) mounts managed by the automounter anymore
-    in the "Places and Mounted Filesystems" bar of the "Open Directory"
-    dialog.
-
-    Notice that those directories are still accessible from the tree at the
-    right side, but they no longer take a prominent place in the left bar.
-
-  - Prevent a hanging Samba (CIFS) or NFS mount from blocking the program, even
-    when no information from that mount is needed at all:
-
-    If you started QDirStat with a path on the command line, it collected the
-    information about used / free / reserved disk space for all mounted
-    filesytems already. If you had a network mount that didn't respond, you
-    still had to wait for a timeout before the program could continue.
-
-    Now it collects that information only when it's really needed:
-
-    - In the "Open Directory" dialog where it displays those sizes in the
-      "Places and Mounted Filesystems" bar on the left
-
-    - In the "Mounted Filesystems" (`du`-like) window (Menu "View" -> "Show
-      Mounted Filesystems").
-
-  - Now cutting off insanely long generated device names of LUKS devices in the
-    "Mounted Filesystems" window: E.g. `/dev/mapper/luks-3fae43...` instead of
-    `/dev/mapper/luks-3fae4328-4294-4c77-8f98-d437c41da26c`. The long name is
-    displayed in a tooltip.
-
-  - Added packed Git archives ("pack-*.pack") to the "Compressed Archives" MIME
-    category, i.e., they appear now in green in the treemap, no longer in the
-    "I don't know what that thing is" grey.
-
-    If you never changed your MIME type configuration, simply delete
-    `~/.config/QDirStat/QDirStat-mime.conf` (while QDirStat is _not_ running!)
-    to get this change; it will be regenerated with the new defaults upon the
-    next program start.
-
-
-  **Bug fixes:**
-
-  - Fixed [GitHub issue #184](https://github.com/shundhammer/qdirstat/issues/184):
-    When reading a cache file, sparse files were displayed as "allocated: 0
-    Bytes".
-
-  - Fixed [GitHub issue #190](https://github.com/shundhammer/qdirstat/issues/190):
-    MIME categories for overlapping suffixes
-
-    Files with multiple suffixes like `.tar.gz` were wrongly sorted into the
-    same MIME category as `.gz`. It did find the category for the longer one
-    (`.tar.gz`), but then it continued looking, resulting in the shortest
-    matching one (`.gz`). Now stopping at the longest hit.
-
-  - Now using `xdg-open %d` in KDE Plasma for the "Open File Manager Here"
-    standard cleanup action. This may help for
-    [GitHub issue #192](https://github.com/shundhammer/qdirstat/issues/192),
-    yet still maintain the ability to use a powerful file manager like
-    _Konqueror_ (if that is configured), falling back to the standard
-    _Dolphin_.
-
-  - Improved BSD support ([GitHub issue #195](https://github.com/shundhammer/qdirstat/issues/195)):
-    If neither `/proc/mounts` nor `/etc/mtab` is available, fall back to
-    using `QStorageInfo` (if available; Qt 5.4 or later).
-
-    This returns a little less complete information; for example, only
-    rudimentary mount options which are used for some special cases.
-
-  - Bug fix for the "Packages" view for .deb / APT based systems: Now also list
-    packages that are on hold. They were previously missing.
-
+  See also the [release announcement](https://github.com/shundhammer/qdirstat/releases/tag/1.9).
 
 ------------
 
@@ -255,6 +253,23 @@ for older entries._
 
 
 This is just a rough summary. For more details, see [DevHistory.md](doc/DevHistory.md).
+
+
+- 2024-01-14 New stable release: 1.9
+
+  - Greatly improved the visual appearance of the treemap thanks to @Lithopsian
+
+  - Dominant (very large) items are now highlighted in bold font in the tree view
+
+  - New "Find" function in the scanned directory tree
+
+  - Added support for bookmarks
+
+  - New documentation to explain the treemap
+
+  - Some small improvements
+
+  - Bug fixes
 
 
 - 2022-06-30 New stable release: 1.8.1
@@ -398,8 +413,9 @@ This is just a rough summary. For more details, see [DevHistory.md](doc/DevHisto
 ### KDirStat and QDirStat
 
 KDirStat was the first program of this kind (combining a traditional tree view
-with a treemap), also written by the same author as QDirStat. It was made for
-KDE 1 back in early 2000; later ported to KDE 2, then KDE 3.
+with a [treemap](doc/Treemap.md)), also written by the same author as
+QDirStat. It was made for KDE 1 back in early 2000; later ported to KDE 2, then
+KDE 3.
 
 QDirStat is based on that code, but made independent of any KDE libraries or
 infrastructure, so it has much fewer library and package dependencies;
@@ -553,7 +569,7 @@ old code base that had been long overdue.
     - Shift-click: Select a range of items.
     - Ctrl-Click:  Select an additional item or deselect a selected one.
 
-  - Treemap:
+  - {Treemap](doc/Treemap.md):
     - Ctrl-Click:  Select an additional item or deselect a selected one.
 
     - The current item is highlighted with a red rectangle, all other selected
@@ -673,6 +689,12 @@ old code base that had been long overdue.
   path) is still available, though.
 
 - Configuration dialog for exclude rules -- see screenshots.
+
+- "Find" function for files, directories and symlinks: Search the scanned tree
+  for them by name with wildcards, regular expressions or fixed strings
+  ("begins with", "ends with", "contains").
+
+- Bookmarks for directories that you visit often.
 
 - Subvolume detection for Btrfs. Btrfs subvolumes are just ordinary mount
   points, so normally QDirStat would stop scanning there, leaving a large part
@@ -877,7 +899,7 @@ Features ported from the old KDirStat:
 
 <details>
 
-- KPacman: That was that PacMan animation wile reading directory reading. This
+- KPacman: That was that PacMan animation while reading directory reading. This
   is gone now. KPacMan looked out of place pretty soon after it got to KDirStat
   due to Qt styles doing fancy rendering of widget backgrounds with gradients
   etc.  I know that it does have its fans, but it's unrealistic to get this
@@ -910,48 +932,28 @@ Features ported from the old KDirStat:
 
 
 
-## MacOS X Compatibility
+## macOS Compatibility
 
-<summary>
-There is some experimental support for MacOS X, but it's really only that: Experimental.
-</summary>
-<details>
+### Ready-made Binaries for macOS
 
-I was amazed to find that it doesn't take more than the normal "qmake" and then
-"make" to build QDirStat for MacOS X. We (Sonja Krause-Harder and I) did some
-basic testing, and it seems to work.
+**New 2024-02-13:**
 
-The cleanups may need some adaptation, but this is something that might even be
-configured by the user.
+Platform binaries built by Jesus Herrera Arroyo <chuy.max@gmail.com>
 
-If anybody wants to give it a try, download Qt for MacOS X, install it, open a
-shell window, search the _qmake_ command:
+at https://github.com/jesusha123/qdirstat-macos
 
-    find . -name qmake
+(go to _Releases_ at the right side panel)
 
-Add this to your $PATH, then do the normal
-
-    qmake
-    make
-
-Not sure how well "make install" works, though.
-
-**_Be advised that QDirStat on MacOS X is purely experimental at this stage._**
-
-There is no support. If you try this, you are on your own. Even more so than
-with the other platforms, you will have to make sure that your Qt build
-environment is set up correctly.
-
-</details>
-
-_There be dragons._ ;-)
+and via Homebrew.
 
 
-### Architecture maintainer wanted for QDirStat for MacOS X
+### Building on macOS
 
-If you are a developer with some prior C++ and Qt knowledge on the MacOS X
-platform and you'd like to see QDirStat working there, please consider joining
-the team.
+See Jesus Herrera's
+[build instructions](https://github.com/jesusha123/qdirstat-macos/blob/main/BUILD.md).
+
+Notice that those instructions are also based on using the original QDirStat
+sources from here, so you are not putting anything at risk.
 
 
 ## Windows Compatibility
@@ -985,7 +987,7 @@ called it WinDirStat.
 
 ### openSUSE / SUSE Linux Enterprise
 
-QDirStat packages for openSUSE Tumbleweed / Leap (15.x, 42.x) and SLE (15, 12)
+QDirStat packages for openSUSE Tumbleweed / Leap 15.x and SLE (15, 12)
 (_Notice that Leap 15.3 is wrongly sorted into the SLE category, not openSUSE as it should_):
 
 - Download page for the [**latest stable release**](https://software.opensuse.org/download/package?project=home:shundhammer:qdirstat-stable&package=qdirstat)
@@ -1009,7 +1011,7 @@ https://packages.debian.org/search?keywords=qdirstat
 
 ### Fedora
 
-https://apps.fedoraproject.org/packages/qdirstat/builds/
+https://packages.fedoraproject.org/pkgs/qdirstat/qdirstat/
 
 
 ## QDirStat Docker Containers
@@ -1025,7 +1027,7 @@ There are currently two publicly available docker containers for QDirStat:
 QDirStat version they provide)
 
 Those containers make QDirStat usable even on non-Linux / non-Unix systems such
-as Windows or MacOS X.
+as Windows or macOS.
 
 Docker is basically a virtualized environment to run software that was designed
 for a different operating system.

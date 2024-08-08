@@ -1,2 +1,4 @@
 Makefile
 .qmake.stash
+build
+qdirstat.pro.user

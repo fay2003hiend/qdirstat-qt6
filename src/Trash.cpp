@@ -7,7 +7,10 @@
  */
 
 
-#include <errno.h>
+#include <sys/stat.h>   // struct stat
+#include <unistd.h>     // getuid()
+#include <errno.h>      // ENOENT
+
 #include <QDir>
 #include <QDateTime>
 #include <QFile>
@@ -202,9 +205,7 @@ bool Trash::restore( const QString & path )
 {
     Q_UNUSED( path )
 
-    // TO DO
-    // TO DO
-    // TO DO
+    // Not implemented
 
     return true;
 }
@@ -212,9 +213,7 @@ bool Trash::restore( const QString & path )
 
 void Trash::empty()
 {
-    // TO DO
-    // TO DO
-    // TO DO
+    // Not implemented
 }
 
 

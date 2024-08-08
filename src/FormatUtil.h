@@ -10,8 +10,8 @@
 #define FormatUtil_h
 
 
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <time.h>       // time_t
+#include <sys/types.h>  // mode_t
 
 #include <QString>
 #include <QTextStream>
@@ -28,7 +28,7 @@ namespace QDirStat
      *
      * Note: For logDebug() etc., operator<< is overwritten to do exactly that:
      *
-     *	   logDebug() << "Size: " << x->totalSize() << endl;
+     *	   logDebug() << "Size: " << x->totalSize() << Qt::endl;
      **/
     QString formatSize( FileSize size );
 

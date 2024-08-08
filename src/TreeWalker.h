@@ -11,6 +11,7 @@
 #define TreeWalker_h
 
 #include "FileInfo.h"
+#include "FileSearchFilter.h"
 
 
 namespace QDirStat
@@ -36,7 +37,10 @@ namespace QDirStat
     {
     public:
 
-        TreeWalker() {}
+        TreeWalker():
+            _overflow( false )
+            {}
+
         virtual ~TreeWalker() {}
 
         /**
@@ -47,9 +51,10 @@ namespace QDirStat
          * adding all appropriate items to an internal list that is sorted so
          * the value of the nth first or last element is used.
          *
-         * This default implementation does nothing.
+         * Derived classes can reimplement this, but the new implementation
+         * should call this base class method in the new implementation.
          **/
-        virtual void prepare( FileInfo * /* subtree */ ) {}
+        virtual void prepare( FileInfo * /* subtree */ ) { _overflow = false; }
 
         /**
          * Check if 'item' fits into the category (largest / newest / oldest
@@ -58,6 +63,15 @@ namespace QDirStat
          * Derived classes are required to implement this.
          **/
         virtual bool check( FileInfo * item ) = 0;
+
+        /**
+         * Flag: Results overflow while walking the tree?
+         *
+         * Derived classes can use this to indicate that the number of results
+         * was limited.
+         **/
+        bool overflow() const { return _overflow; }
+
 
     protected:
 
@@ -72,6 +86,13 @@ namespace QDirStat
          * an the minimum value (P0) to a lower percentile.
          **/
         qreal lowerPercentileThreshold( PercentileStats & stats );
+
+
+        //
+        // Data members
+        //
+
+        bool _overflow;
 
     };  // class TreeWalker
 
@@ -219,6 +240,29 @@ namespace QDirStat
 
         short _year;
         short _month;
+    };
+
+
+    /**
+     * TreeWalker to find files and/or directories that match a pattern.
+     **/
+    class FindFilesTreeWalker: public TreeWalker
+    {
+    public:
+        FindFilesTreeWalker( const FileSearchFilter & filter ):
+            TreeWalker(),
+            _filter( filter ),
+            _count( 0 )
+            {}
+
+        virtual void prepare( FileInfo * subtree );
+
+        virtual bool check( FileInfo * item );
+
+    protected:
+
+        FileSearchFilter _filter;
+        int              _count;
     };
 
 }       // namespace QDirStat

@@ -8,14 +8,17 @@
 
 #include <QActionGroup>
 #include <QApplication>
-#include <QCloseEvent>
-#include <QMouseEvent>
-#include <QMessageBox>
-#include <QFileDialog>
 #include <QClipboard>
+#include <QCloseEvent>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QMessageBox>
+#include <QMouseEvent>
 
 #include "MainWindow.h"
 #include "ActionManager.h"
+#include "BookmarksManager.h"
+#include "BusyPopup.h"
 #include "CleanupCollection.h"
 #include "CleanupConfigPage.h"
 #include "ConfigDialog.h"
@@ -27,8 +30,10 @@
 #include "Exception.h"
 #include "ExcludeRules.h"
 #include "FileDetailsView.h"
+#include "FileSearchFilter.h"
 #include "FileSizeStatsWindow.h"
 #include "FileTypeStatsWindow.h"
+#include "FindFilesDialog.h"
 #include "Logger.h"
 #include "MimeCategorizer.h"
 #include "OpenDirDialog.h"
@@ -42,6 +47,7 @@
 #include "SelectionModel.h"
 #include "Settings.h"
 #include "SettingsHelpers.h"
+#include "SignalBlocker.h"
 #include "SysUtil.h"
 #include "Trash.h"
 #include "UnreadableDirsWindow.h"
@@ -77,7 +83,6 @@ MainWindow::MainWindow():
     _updateTimer.setInterval( UPDATE_MILLISEC );
     _treeExpandTimer.setSingleShot( true );
     _dUrl = _ui->actionDonate->iconText();
-    _futureSelection.setUseRootFallback( false );
     _ui->menubar->setCornerWidget( new QLabel( MENUBAR_VERSION ) );
 
     // The first call to app() creates the QDirStatApp and with it
@@ -91,6 +96,27 @@ MainWindow::MainWindow():
 
     _ui->treemapView->setDirTree( app()->dirTree() );
     _ui->treemapView->setSelectionModel( app()->selectionModel() );
+
+    _futureSelection.setTree( app()->dirTree() );
+    _futureSelection.setUseParentFallback( true );
+
+    app()->bookmarksManager()->setBookmarksMenu( _ui->menuBookmarks );
+    app()->bookmarksManager()->read();
+    app()->bookmarksManager()->rebuildBookmarksMenu();
+
+
+    // Set the boldItemFont for the DirTreeModel.
+    //
+    // It can't fetch that by itself from the DirTreeView;
+    // we'd get an initialization sequence problem.
+    // So this has to be done from the outside when both are created.
+
+    QFont boldItemFont = _ui->dirTreeView->font();
+    boldItemFont.setWeight( QFont::Bold );
+    app()->dirTreeModel()->setBoldItemFont( boldItemFont );
+
+
+    // Initialize cleanups
 
     app()->cleanupCollection()->addToMenu   ( _ui->menuCleanup,
                                               true ); // keepUpdated
@@ -140,6 +166,7 @@ MainWindow::~MainWindow()
     writeSettings();
     ExcludeRules::instance()->writeSettings();
     MimeCategorizer::instance()->writeSettings();
+    app()->bookmarksManager()->write();
 
     // Relying on the QObject hierarchy to properly clean this up resulted in a
     //	segfault; there was probably a problem in the deletion order.
@@ -210,8 +237,17 @@ void MainWindow::connectSignals()
     connect( app()->selectionModel(),	 SIGNAL( currentItemChanged( FileInfo *, FileInfo * ) ),
 	     _historyButtons,		 SLOT  ( addToHistory	   ( FileInfo *		    ) ) );
 
+    connect( app()->selectionModel(),	 SIGNAL( currentItemChanged  ( FileInfo *, FileInfo * ) ),
+	     this,      		 SLOT  ( updateBookmarkButton( FileInfo *             ) ) );
+
     connect( _historyButtons,		 SIGNAL( navigateToUrl( QString ) ),
 	     this,			 SLOT  ( navigateToUrl( QString ) ) );
+
+    connect( app()->bookmarksManager(),  SIGNAL( navigateToUrl( QString ) ),
+             this,                       SLOT  ( navigateToUrl( QString ) ) );
+
+    connect( _ui->bookmarkButton,        SIGNAL( toggled            ( bool ) ),
+             this,                       SLOT  ( bookmarkCurrentPath( bool ) ) );
 
     connect( _ui->breadcrumbNavigator,	 SIGNAL( pathClicked   ( QString ) ),
 	     app()->selectionModel(),	 SLOT  ( setCurrentItem( QString ) ) );
@@ -229,7 +265,7 @@ void MainWindow::connectSignals()
 	     this,			 SLOT  ( showElapsedTime() ) );
 
     connect( &_treeExpandTimer,		  SIGNAL( timeout() ),
-	     _ui->actionExpandTreeLevel1, SLOT( trigger()   ) );
+	     _ui->actionExpandTreeLevel1, SLOT  ( trigger()   ) );
 
     if ( _useTreemapHover )
     {
@@ -256,13 +292,13 @@ void MainWindow::updateActions()
     bool pkgView	     = firstToplevel && firstToplevel->isPkgInfo();
 
     _ui->actionStopReading->setEnabled( reading );
-    _ui->actionRefreshAll->setEnabled	( ! reading );
+    _ui->actionRefreshAll->setEnabled	( ! reading && firstToplevel );
     _ui->actionAskReadCache->setEnabled ( ! reading );
-    _ui->actionAskWriteCache->setEnabled( ! reading );
+    _ui->actionAskWriteCache->setEnabled( ! reading && ! pkgView && firstToplevel );
 
     _ui->actionCopyPathToClipboard->setEnabled( currentItem );
     _ui->actionGoUp->setEnabled( currentItem && currentItem->treeLevel() > 1 );
-    _ui->actionGoToToplevel->setEnabled( firstToplevel && ( ! currentItem || currentItem->treeLevel() > 1 ));
+    _ui->actionGoToToplevel->setEnabled( firstToplevel );
 
     FileInfoSet selectedItems = app()->selectionModel()->selectedItems();
     FileInfo * sel	      = selectedItems.first();
@@ -277,15 +313,15 @@ void MainWindow::updateActions()
     _ui->actionContinueReadingAtMountPoint->setEnabled( oneDirSelected && sel->isMountPoint() );
     _ui->actionReadExcludedDirectory->setEnabled      ( oneDirSelected && sel->isExcluded()   );
 
-    bool nothingOrOneDir = selectedItems.isEmpty() || oneDirSelected;
+    bool nothingOrOneDirInfo = selectedItems.isEmpty() || ( selSize == 1 && sel->isDirInfo() );
+    // Notice that DotEntry, PkgInfo, Attic also inherit DirInfo
 
-    _ui->actionFileSizeStats->setEnabled( ! reading && nothingOrOneDir );
-    _ui->actionFileTypeStats->setEnabled( ! reading && nothingOrOneDir );
-    _ui->actionFileAgeStats->setEnabled ( ! reading && nothingOrOneDir );
+    _ui->actionFileSizeStats->setEnabled( ! reading && nothingOrOneDirInfo );
+    _ui->actionFileTypeStats->setEnabled( ! reading && nothingOrOneDirInfo );
+    _ui->actionFileAgeStats->setEnabled ( ! reading && nothingOrOneDirInfo );
 
     bool showingTreemap = _ui->treemapView->isVisible();
 
-    _ui->actionTreemapAsSidePanel->setEnabled( showingTreemap );
     _ui->actionTreemapZoomIn->setEnabled   ( showingTreemap && _ui->treemapView->canZoomIn() );
     _ui->actionTreemapZoomOut->setEnabled  ( showingTreemap && _ui->treemapView->canZoomOut() );
     _ui->actionResetTreemapZoom->setEnabled( showingTreemap && _ui->treemapView->canZoomOut() );
@@ -302,7 +338,6 @@ void MainWindow::readSettings()
 
     _statusBarTimeout	  = settings.value( "StatusBarTimeoutMillisec", 3000  ).toInt();
     bool showTreemap	  = settings.value( "ShowTreemap"	      , true  ).toBool();
-    bool treemapOnSide	  = settings.value( "TreemapOnSide"	      , false ).toBool();
 
     _verboseSelection	  = settings.value( "VerboseSelection"	      , false ).toBool();
     _urlInWindowTitle	  = settings.value( "UrlInWindowTitle"	      , false ).toBool();
@@ -317,9 +352,6 @@ void MainWindow::readSettings()
     settings.endGroup();
 
     _ui->actionShowTreemap->setChecked( showTreemap );
-    _ui->actionTreemapAsSidePanel->setChecked( treemapOnSide );
-    treemapAsSidePanel();
-
     _ui->actionVerboseSelection->setChecked( _verboseSelection );
 
     foreach ( QAction * action, _layoutActionGroup->actions() )
@@ -358,7 +390,6 @@ void MainWindow::writeSettings()
     settings.beginGroup( "MainWindow" );
 
     settings.setValue( "ShowTreemap"	 , _ui->actionShowTreemap->isChecked() );
-    settings.setValue( "TreemapOnSide"	 , _ui->actionTreemapAsSidePanel->isChecked() );
     settings.setValue( "VerboseSelection", _verboseSelection );
     settings.setValue( "Layout"		 , _layoutName );
 
@@ -388,15 +419,6 @@ void MainWindow::showTreemapView()
 	_ui->treemapView->enable();
     else
 	_ui->treemapView->disable();
-}
-
-
-void MainWindow::treemapAsSidePanel()
-{
-    if ( _ui->actionTreemapAsSidePanel->isChecked() )
-	_ui->mainWinSplitter->setOrientation( Qt::Horizontal );
-    else
-	_ui->mainWinSplitter->setOrientation( Qt::Vertical );
 }
 
 
@@ -442,8 +464,9 @@ void MainWindow::idleDisplay()
     int sortCol = QDirStat::DataColumns::toViewCol( QDirStat::PercentNumCol );
     _ui->dirTreeView->sortByColumn( sortCol, Qt::DescendingOrder );
 
-    if ( ! _futureSelection.isEmpty() )
+    if ( _futureSelection.subtree() )
     {
+        // logDebug() << "Using future selection " << _futureSelection.subtree() << Qt::endl;
         _treeExpandTimer.stop();
         applyFutureSelection();
     }
@@ -474,6 +497,15 @@ void MainWindow::updateFileDetailsView()
 		_ui->fileDetailsView->showDetails( sel );
 	}
     }
+}
+
+
+void MainWindow::setDetailsPanelVisible( bool visible )
+{
+    _ui->fileDetailsPanel->setVisible( visible );
+
+    if ( visible )
+        updateFileDetailsView();
 }
 
 
@@ -529,12 +561,20 @@ void MainWindow::openUrl( const QString & url )
 }
 
 
-void MainWindow::openDir( const QString & url )
+void MainWindow::openDir( const QString & origUrl )
 {
+    QString url = handleSymLink( origUrl );
+
     try
     {
+        if ( url.startsWith( "/" ) )
+            _futureSelection.setUrl( url );
+        else
+            _futureSelection.clear();
+
 	app()->dirTreeModel()->openUrl( url );
 	updateWindowTitle( app()->dirTree()->url() );
+        app()->bookmarksManager()->setBaseUrl( app()->dirTree()->url() );
     }
     catch ( const SysCallFailedException & ex )
     {
@@ -560,6 +600,53 @@ void MainWindow::showOpenDirErrorPopup( const SysCallFailedException & ex )
                             this );			// parent
     errorPopup.setDetailedText( ex.what() );
     errorPopup.exec();
+}
+
+
+QString MainWindow::handleSymLink( const QString & origUrl ) const
+{
+    QString   url( origUrl );
+    QFileInfo urlInfo( url );
+
+    if ( urlInfo.isSymLink() )
+    {
+        PanelMessage * msg = 0;
+
+        if ( urlInfo.exists() )
+        {
+            QString target = urlInfo.canonicalFilePath();
+
+            logInfo() << "Following symlink \"" << url
+                      <<"\" to target \"" << target << "\"" << Qt::endl;
+
+            msg = new PanelMessage( _ui->messagePanel );
+            CHECK_NEW( msg );
+
+            msg->setHeading( tr( "Following symbolic link" ) );
+            msg->setText( tr( "%1 is a symbolic link to %2" )
+                          .arg( url ).arg( target ) );
+            _ui->messagePanel->add( msg );
+
+            url = target;
+        }
+        else
+        {
+            logError() << "Broken symlink";
+
+            msg = new PanelMessage( _ui->messagePanel );
+            CHECK_NEW( msg );
+
+            msg->setHeading( tr( "Broken symbolic link" ) );
+            msg->setText( tr( "%1 is a broken symbolic link to %2" )
+                          .arg( url ).arg( urlInfo.symLinkTarget() ) );
+            msg->setIcon( QPixmap( ":/icons/dialog-warning.png" ) );
+        }
+
+        if ( msg )
+            _ui->messagePanel->add( msg );
+    }
+
+    return url;
 }
 
 
@@ -598,13 +685,33 @@ void MainWindow::askOpenPkg()
 }
 
 
+void MainWindow::askFindFiles()
+{
+    bool canceled;
+    FileSearchFilter filter = FindFilesDialog::askFindFiles( &canceled );
+
+    if ( ! canceled )
+    {
+	_discoverActions->findFiles( filter );
+    }
+}
+
+
 void MainWindow::readPkg( const PkgFilter & pkgFilter )
 {
-    // logInfo() << "URL: " << pkgFilter.url() << Qt::endl;
+    logInfo() << "URL: " << pkgFilter.url() << Qt::endl;
 
+    _futureSelection.setUrl( "Pkg:/" );
     updateWindowTitle( pkgFilter.url() );
-    expandTreeToLevel( 0 );   // Performance boost: Down from 25 to 6 sec.
+    _ui->breadcrumbNavigator->clear();
+    _ui->fileDetailsView->clear();
+    app()->dirTreeModel()->clear();
+
+    BusyPopup msg( tr( "Reading package database..." ), this );
+
     app()->dirTreeModel()->readPkg( pkgFilter );
+    app()->bookmarksManager()->setBaseUrl( app()->dirTree()->url() );
+    app()->selectionModel()->setCurrentItem( app()->dirTree()->firstToplevel() );
 }
 
 
@@ -616,6 +723,7 @@ void MainWindow::refreshAll()
     if ( ! url.isEmpty() )
     {
 	logDebug() << "Refreshing " << url << Qt::endl;
+        _futureSelection.setUrl( url );
 
 	if ( PkgFilter::isPkgUrl( url ) )
 	    app()->dirTreeModel()->readPkg( url );
@@ -642,7 +750,7 @@ void MainWindow::refreshSelected()
 {
     busyDisplay();
     _futureSelection.set( app()->selectionModel()->selectedItems().first() );
-    // logDebug() << "Setting future selection: " << _futureSelection.subtree() << Qt::endl;
+    // logDebug() << "Setting future selection: " << _futureSelection.url() << Qt::endl;
     app()->dirTreeModel()->refreshSelected();
     updateActions();
 }
@@ -650,16 +758,26 @@ void MainWindow::refreshSelected()
 
 void MainWindow::applyFutureSelection()
 {
-    FileInfo * sel = _futureSelection.subtree();
-    // logDebug() << "Using future selection: " << sel << Qt::endl;
+    FileInfo * sel    = _futureSelection.subtree();
+    DirInfo  * branch = _futureSelection.dir();
+    _futureSelection.clear();
+
+#if 0
+    logDebug() << "Using future selection: " << sel << Qt::endl;
+    logDebug() << "Branch: " << branch << Qt::endl;
+#endif
 
     if ( sel )
     {
         _treeExpandTimer.stop();
-        _futureSelection.clear();
-        app()->selectionModel()->setCurrentBranch( sel );
 
-        if ( sel->isMountPoint() )
+        if ( branch )
+            app()->selectionModel()->setCurrentBranch( branch );
+
+        app()->selectionModel()->setCurrentItem( sel,
+                                                 true);  // select
+
+        if ( sel->isMountPoint() || sel->isDirInfo() )  // || app()->dirTree()->isToplevel( sel ) )
             _ui->dirTreeView->setExpanded( sel, true );
     }
 }
@@ -681,7 +799,16 @@ void MainWindow::readCache( const QString & cacheFileName )
     _historyButtons->clearHistory();
 
     if ( ! cacheFileName.isEmpty() )
-	app()->dirTree()->readCache( cacheFileName );
+    {
+	bool success = app()->dirTree()->readCache( cacheFileName );
+
+        if ( ! success )
+        {
+	    QMessageBox::warning( this,
+                                  tr( "Error" ), // Title
+                                  tr( "Can't read cache file \"%1\"").arg( cacheFileName ) );
+        }
+    }
 }
 
 
@@ -712,9 +839,9 @@ void MainWindow::askWriteCache()
 	}
 	else
 	{
-	    QMessageBox::critical( this,
+	    QMessageBox::warning( this,
 				   tr( "Error" ), // Title
-				   tr( "ERROR writing cache file %1").arg( fileName ) );
+				   tr( "ERROR writing cache file \"%1\"").arg( fileName ) );
 	}
     }
 }
@@ -790,12 +917,21 @@ void MainWindow::showSummary()
 
 void MainWindow::startingCleanup( const QString & cleanupName )
 {
+    // Notice that this is not called for actions that are not owned by the
+    // CleanupCollection such as _ui->actionMoveToTrash().
+
+    FileInfo * sel = app()->selectionModel()->selectedItems().first();
+    _futureSelection.set( sel );
+    logDebug() << "Storing future selection " << sel << Qt::endl;
     showProgress( tr( "Starting cleanup action %1" ).arg( cleanupName ) );
 }
 
 
 void MainWindow::cleanupFinished( int errorCount )
 {
+    // Notice that this is not called for actions that are not owned by the
+    // CleanupCollection such as _ui->actionMoveToTrash().
+
     logDebug() << "Error count: " << errorCount << Qt::endl;
 
     if ( errorCount == 0 )
@@ -844,11 +980,23 @@ void MainWindow::navigateUp()
 {
     FileInfo * currentItem = app()->selectionModel()->currentItem();
 
-    if ( currentItem && currentItem->parent() &&
-	 currentItem->parent() != app()->dirTree()->root() )
+    if ( currentItem )
     {
-	app()->selectionModel()->setCurrentItem( currentItem->parent(),
-					 true ); // select
+        FileInfo * parent = currentItem->parent();
+
+        if ( parent && parent != app()->dirTree()->root() )
+        {
+
+            // Close and re-open the parent to enforce a screen update:
+            // Sometimes the bold font is not taken into account when moving
+            // upwards, and so every column is cut off (probably a Qt bug)
+            _ui->dirTreeView->setExpanded( parent, false );
+
+            app()->selectionModel()->setCurrentItem( parent,
+                                                     true ); // select
+            // Re-open the parent
+            _ui->dirTreeView->setExpanded( parent, true );
+        }
     }
 }
 
@@ -886,9 +1034,89 @@ void MainWindow::navigateToUrl( const QString & url )
 }
 
 
+void MainWindow::updateBookmarkButton( FileInfo * newCurrent )
+{
+    SignalBlocker sigBlocker( _ui->bookmarkButton );  // Prevent signal ping-pong
+
+    if ( ! newCurrent )  // No selection / no current item
+    {
+        // logDebug() << "No current item" << Qt::endl;
+        _ui->bookmarkButton->setChecked( false );
+    }
+    else
+    {
+        DirInfo * currentDir = newCurrent->toDirInfo();
+
+        if ( ! currentDir && newCurrent->parent() )
+            currentDir = newCurrent->parent();
+
+        if ( currentDir )
+        {
+            QString url = currentDir->debugUrl();
+            bool isBookmarked = app()->bookmarksManager()->contains( url );
+            _ui->bookmarkButton->setChecked( isBookmarked );
+#if 0
+            if ( isBookmarked )
+                logDebug() << url << " is bookmarked" << Qt::endl;
+#endif
+        }
+    }
+}
+
+
+void MainWindow::bookmarkCurrentPath( bool isChecked )
+{
+    //
+    // Find out the current item and directory
+    //
+
+    FileInfo * currentItem = app()->selectionModel()->currentItem();
+
+    if ( ! currentItem )
+        return;
+
+    DirInfo * currentDir = currentItem->toDirInfo();
+
+    if ( ! currentDir && currentItem->parent() )  // Not a directory?
+        currentDir = currentItem-> parent();      // Move up one level
+
+    if ( currentDir )
+    {
+        //
+        // Add or remove it from the bookmarks
+        //
+
+        // debugUrl() because we want the <Files> DotEntry if there is one
+        QString url = currentDir->debugUrl();
+
+        if ( isChecked )
+        {
+            app()->bookmarksManager()->add( url );
+            // The BookmarksManager is already logging this
+            showProgress( tr( "Bookmarked %1" ).arg( url ) );
+        }
+        else
+        {
+            app()->bookmarksManager()->remove( url );
+            // The BookmarksManager is already logging this
+            showProgress( tr( "Un-bookmarked %1" ).arg( url ) );
+        }
+    }
+}
+
+
 void MainWindow::moveToTrash()
 {
+    // _ui->actionMoveToTrash() is not a subclass of Cleanup and not owned by
+    // CleanupCollection, so this has to replicate some of its functionality.
+
     FileInfoSet selectedItems = app()->selectionModel()->selectedItems().normalized();
+
+    // Save the selection - at least the first selected item
+
+    FileInfo * sel = selectedItems.first();
+    _futureSelection.set( sel );
+    logDebug() << "Storing future selection " << sel << Qt::endl;
 
     // Prepare output window
 
@@ -953,13 +1181,13 @@ void MainWindow::openConfigDialog()
 
 void MainWindow::showFileTypeStats()
 {
-    FileTypeStatsWindow::populateSharedInstance( app()->selectedDirOrRoot() );
+    FileTypeStatsWindow::populateSharedInstance( app()->selectedDirInfoOrRoot() );
 }
 
 
 void MainWindow::showFileSizeStats()
 {
-    FileSizeStatsWindow::populateSharedInstance( app()->selectedDirOrRoot() );
+    FileSizeStatsWindow::populateSharedInstance( app()->selectedDirInfoOrRoot() );
 }
 
 
@@ -982,7 +1210,7 @@ void MainWindow::showFileAgeStats()
                  _discoverActions,        SLOT  ( discoverFilesFromMonth( QString, short, short ) ) );
     }
 
-    _fileAgeStatsWindow->populate( app()->selectedDirOrRoot() );
+    _fileAgeStatsWindow->populate( app()->selectedDirInfoOrRoot() );
     _fileAgeStatsWindow->show();
 }
 

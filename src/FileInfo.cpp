@@ -7,12 +7,9 @@
  */
 
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <pwd.h>	// getpwuid()
 #include <grp.h>	// getgrgid()
 #include <time.h>       // gmtime()
-#include <unistd.h>
 
 #include <QDateTime>
 
@@ -55,6 +52,7 @@ FileInfo::FileInfo( DirTree    * tree,
     _isLocalFile   = true;
     _isSparseFile  = false;
     _isIgnored	   = false;
+    _hasUidGidPerm = false;
     _name	   = name ? name : "";
     _device	   = 0;
     _mode	   = 0;
@@ -88,6 +86,7 @@ FileInfo::FileInfo( const QString & filenameWithoutPath,
 
     _isLocalFile   = true;
     _isIgnored	   = false;
+    _hasUidGidPerm = true;
     _name	   = filenameWithoutPath;
 
     _device	   = statInfo->st_dev;
@@ -161,6 +160,9 @@ FileInfo::FileInfo( DirTree *	    tree,
 		    const QString & filenameWithoutPath,
 		    mode_t	    mode,
 		    FileSize	    size,
+                    bool            withUidGidPerm,
+                    uid_t           uid,
+                    gid_t           gid,
 		    time_t	    mtime,
 		    FileSize	    blocks,
 		    nlink_t	    links )
@@ -176,6 +178,7 @@ FileInfo::FileInfo( DirTree *	    tree,
     _name	   = filenameWithoutPath;
     _isLocalFile   = true;
     _isIgnored	   = false;
+    _hasUidGidPerm = withUidGidPerm;
     _device	   = 0;
     _mode	   = mode;
     _size	   = size;
@@ -184,8 +187,8 @@ FileInfo::FileInfo( DirTree *	    tree,
     _mtimeMonth    = -1;
     _allocatedSize = 0;
     _links	   = links;
-    _uid	   = 0;
-    _gid	   = 0;
+    _uid	   = uid;
+    _gid	   = gid;
     _magic	   = FileInfoMagic;
 
     if ( blocks < 0 )
@@ -471,7 +474,7 @@ FileInfo * FileInfo::locate( QString url, bool findPseudoDirs )
                 child = child->next();
             }
 
-            // logDebug() << "Cant find " << url << " in DotEntry" << Qt::endl;
+            // logDebug() << "Cannot find " << url << " in DotEntry" << Qt::endl;
 	}
 
 	if ( ! result && attic() )
@@ -533,13 +536,25 @@ bool FileInfo::isCached() const
 
 bool FileInfo::hasUid() const
 {
+    if ( _hasUidGidPerm )
+        return true;
+
     return ! isPkgInfo() && ! isCached();
 }
 
 
 bool FileInfo::hasGid() const
 {
+    if ( _hasUidGidPerm )
+        return true;
+
     return ! isPkgInfo() && ! isCached();
+}
+
+
+bool FileInfo::hasPermissions() const
+{
+    return _hasUidGidPerm;
 }
 
 
@@ -573,6 +588,9 @@ QString FileInfo::groupName() const
 
 QString FileInfo::symbolicPermissions() const
 {
+    if ( ! hasPermissions() )
+        return "";
+
     return symbolicMode( _mode,
 			 true ); // omitTypeForRegularFiles
 }
@@ -580,6 +598,9 @@ QString FileInfo::symbolicPermissions() const
 
 QString FileInfo::octalPermissions() const
 {
+    if ( ! hasPermissions() )
+        return "";
+
     return formatOctal( ALLPERMS & _mode );
 }
 
@@ -684,7 +705,7 @@ QString FileInfo::symLinkTarget()
     if ( ! isSymLink() )
         return QString();
 
-    return SysUtil::symLinkTarget( url() );
+    return SysUtil::symLinkTarget( path() );
 }
 
 
@@ -718,6 +739,13 @@ void  FileInfo::processMtime()
     _mtimeYear  = mtime_tm->tm_year + 1900;
     _mtimeMonth = mtime_tm->tm_mon  + 1;
 }
+
+
+bool FileInfo::isDominant()
+{
+    return _parent ? _parent->isDominantChild( this ) : false;
+}
+
 
 
 

@@ -12,6 +12,7 @@
 #include "MainWindow.h"
 #include "QDirStatApp.h"
 #include "SelectionModel.h"
+#include "BookmarksManager.h"
 #include "Version.h"
 #include "Exception.h"
 #include "Logger.h"
@@ -66,6 +67,7 @@ void MainWindow::connectEditMenu()
 
     CONNECT_ACTION( _ui->actionCopyPathToClipboard, this, copyCurrentPathToClipboard() );
     CONNECT_ACTION( _ui->actionMoveToTrash,	    this, moveToTrash()                );
+    CONNECT_ACTION( _ui->actionFindFiles,	    this, askFindFiles()               );
     CONNECT_ACTION( _ui->actionConfigure,           this, openConfigDialog()           );
 }
 
@@ -75,11 +77,8 @@ void MainWindow::connectViewMenu()
     connectViewExpandMenu();
     connectViewTreemapMenu();
 
-    connect( _ui->actionShowCurrentPath,  SIGNAL( toggled   ( bool ) ),
-	     _ui->breadcrumbNavigator,	  SLOT	( setVisible( bool ) ) );
-
-    connect( _ui->actionShowDetailsPanel, SIGNAL( toggled   ( bool ) ),
-	     _ui->fileDetailsPanel,	  SLOT	( setVisible( bool ) ) );
+    connect( _ui->actionShowDetailsPanel, SIGNAL( toggled                       ( bool ) ),
+             this,                        SLOT	( setDetailsPanelVisible        ( bool ) ) );
 
     CONNECT_ACTION( _ui->actionLayout1,		   this, changeLayout() );
     CONNECT_ACTION( _ui->actionLayout2,		   this, changeLayout() );
@@ -144,9 +143,6 @@ void MainWindow::connectViewTreemapMenu()
     connect( _ui->actionShowTreemap, SIGNAL( toggled( bool )   ),
 	     this,		     SLOT  ( showTreemapView() ) );
 
-    connect( _ui->actionTreemapAsSidePanel, SIGNAL( toggled( bool )	 ),
-	     this,			    SLOT  ( treemapAsSidePanel() ) );
-
     CONNECT_ACTION( _ui->actionTreemapZoomIn,	 _ui->treemapView, zoomIn()	    );
     CONNECT_ACTION( _ui->actionTreemapZoomOut,	 _ui->treemapView, zoomOut()	    );
     CONNECT_ACTION( _ui->actionResetTreemapZoom, _ui->treemapView, resetZoom()	    );
@@ -160,6 +156,9 @@ void MainWindow::connectGoMenu()
     CONNECT_ACTION( _ui->actionGoForward,    _historyButtons,   historyGoForward()   );
     CONNECT_ACTION( _ui->actionGoUp,	     this,              navigateUp()         );
     CONNECT_ACTION( _ui->actionGoToToplevel, this,              navigateToToplevel() );
+
+    _ui->actionGoUp->setShortcutContext        ( Qt::ApplicationShortcut );
+    _ui->actionGoToToplevel->setShortcutContext( Qt::ApplicationShortcut );
 }
 
 
@@ -180,7 +179,11 @@ void MainWindow::connectHelpMenu()
 
     _ui->actionWhatsNew->setStatusTip( RELEASE_URL ); // defined in Version.h
 
+    // openActionUrl() uses the QAction::statusTip() for the URL.
+    // Set the URL by editing main-window.ui in Qt Designer.
+
     CONNECT_ACTION( _ui->actionHelp,		 this, openActionUrl()    );
+    CONNECT_ACTION( _ui->actionTreemapHelp,	 this, openActionUrl()    );
     CONNECT_ACTION( _ui->actionPkgViewHelp,	 this, openActionUrl()    );
     CONNECT_ACTION( _ui->actionUnpkgViewHelp,	 this, openActionUrl()    );
     CONNECT_ACTION( _ui->actionFileAgeStatsHelp, this, openActionUrl()    );

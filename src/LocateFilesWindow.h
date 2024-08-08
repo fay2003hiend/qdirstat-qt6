@@ -60,7 +60,6 @@ namespace QDirStat
 	 **/
 	virtual ~LocateFilesWindow();
 
-
         /**
          * Obtain the subtree from the last used URL or 0 if none was found.
          **/
@@ -142,6 +141,11 @@ namespace QDirStat
 	void initWidgets();
 
         /**
+         * Count the number of items in the list and display the number.
+         **/
+        void showResultsCount();
+
+        /**
          * Select the first item in the list. This will also select it in the
          * main window, open the branch where this item is in and scroll the
          * main window's tree so that item is visible tere.
@@ -209,9 +213,8 @@ namespace QDirStat
 	/**
 	 * Constructor.
 	 **/
-	LocateListItem( const QString & path,
-                        FileSize	size,
-                        time_t          mtime );
+	LocateListItem( FileInfo * item );
+
 
 	//
 	// Getters

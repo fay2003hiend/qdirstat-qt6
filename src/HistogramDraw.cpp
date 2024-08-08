@@ -7,7 +7,7 @@
  */
 
 
-#include <math.h>
+#include <math.h>       // log2()
 
 #include "HistogramView.h"
 #include "HistogramItems.h"
@@ -225,7 +225,7 @@ void HistogramView::addHistogramBars()
 
     for ( int i=0; i < _buckets.size(); ++i )
     {
-	// logDebug() << "Adding bar #" << i << " with value " << _buckets[ i ] << endl;
+	// logDebug() << "Adding bar #" << i << " with value " << _buckets[ i ] << Qt::endl;
 	QRectF rect;
 	rect.setX( i * barWidth );
 	rect.setY( 0 );
@@ -294,7 +294,7 @@ void HistogramView::addMarkers()
 	if ( _percentileStep != 0 && _percentileStep != 5 && i % 10 == 0 )
 	    pen = _decilePen;
 
-	// logDebug() << "Adding marker for P" << i << endl;
+	// logDebug() << "Adding marker for P" << i << Qt::endl;
 	new PercentileMarker( this, i, "", zeroLine, pen );
     }
 

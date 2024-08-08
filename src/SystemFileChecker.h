@@ -10,8 +10,8 @@
 #ifndef SystemFileChecker_h
 #define SystemFileChecker_h
 
+#include <sys/types.h> // uid_t
 
-#include <sys/types.h>
 #include <QString>
 
 

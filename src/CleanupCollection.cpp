@@ -435,6 +435,18 @@ void CleanupCollection::addToMenu( QMenu * menu, bool keepUpdated )
 }
 
 
+void CleanupCollection::addEnabledToMenu( QMenu * menu )
+{
+    CHECK_PTR( menu );
+
+    foreach ( Cleanup * cleanup, _cleanupList )
+    {
+	if ( cleanup->active() && cleanup->isEnabled() )
+	    menu->addAction( cleanup );
+    }
+}
+
+
 void CleanupCollection::addToToolBar( QToolBar * toolBar, bool keepUpdated )
 {
     CHECK_PTR( toolBar );
@@ -546,7 +558,23 @@ void CleanupCollection::readSettings()
 		    cleanup->setIcon( iconName );
 
 		if ( ! hotkey.isEmpty() )
+                {
+                    if ( hotkey == "Ctrl+F" )
+                    {
+                        // Crude workaround for the "Open File Manager Here" Ctrl+F shortcut
+                        // clashing with Ctrl+F for "Find..." in the "Edit" menu.
+
+                        // Yes, that's ugly; sorry. But Ctrl+F for "Find" has become an
+                        // established standard.
+
+                        hotkey = "Ctrl+G";
+                        logError() << "The Ctrl+F hotkey for '" << title
+                                   << "' is now taken by 'Edit' -> 'Find...'." << Qt::endl;
+                        logError() << "Changing to " << hotkey << "." << Qt::endl;
+                    }
+
 		    cleanup->setShortcut( hotkey );
+                }
 
 		// if ( ! shell.isEmpty() )
 		//    logDebug() << "Using custom shell " << shell << " for " << cleanup << Qt::endl;

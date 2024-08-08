@@ -11,11 +11,6 @@
 #define DirTree_h
 
 
-#include <sys/types.h>
-#include <limits.h>
-#include <dirent.h>
-#include <stdlib.h>
-
 #include <QList>
 
 #include "DirReadJob.h"
@@ -43,6 +38,8 @@ namespace QDirStat
      * invisible root item to support multiple toplevel items.
      *
      * @short Directory tree global data and infrastructure
+     *
+     * See also FileInfo, DirInfo.
      **/
     class DirTree: public QObject
     {
@@ -145,7 +142,7 @@ namespace QDirStat
 	 * Return 'true' if 'item' is a toplevel item, i.e. a direct child of
 	 * the root item.
 	 **/
-	bool isTopLevel( FileInfo *item ) const;
+	bool isToplevel( FileInfo *item ) const;
 
 	/**
 	 * Return the device of this tree's root item ("/dev/sda3" etc.).
@@ -272,8 +269,10 @@ namespace QDirStat
 
 	/**
 	 * Read a cache file.
+	 *
+	 * Returns true if OK, false upon error.
 	 **/
-	void readCache( const QString & cacheFileName );
+	bool readCache( const QString & cacheFileName );
 
 	/**
 	 * Clear the tree and read a cache file.
@@ -447,7 +446,6 @@ namespace QDirStat
 	 * Recurse through the tree from 'dir' on and move any ignored items to
 	 * the attic on the same level.
 	 **/
-
 	void moveIgnoredToAttic( DirInfo * dir );
 
 	/**

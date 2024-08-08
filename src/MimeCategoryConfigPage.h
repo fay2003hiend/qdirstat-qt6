@@ -125,6 +125,28 @@ namespace QDirStat
 	virtual QString deleteConfirmationMessage( void * value ) Q_DECL_OVERRIDE;
 
 	/**
+	 * Signal handler for a change in the list widget current item.
+	 *
+	 * Implemented from ListEditor.
+	 **/
+	virtual void currentItemChanged( QListWidgetItem * current, QListWidgetItem * previous) Q_DECL_OVERRIDE;
+
+	/**
+	 * Update actions to match the current item properties.
+	 *
+	 * Implemented from ListEditor.
+	 **/
+	virtual void updateActions() Q_DECL_OVERRIDE;
+
+	/**
+	 * Set the remove button, name, and patterns enabled or disabled,
+	 * based on the name of the current category item.
+	 *
+	 * Called by currentItemChanged() and updateActions().
+	 **/
+	void setActions( const QListWidgetItem * currentItem );
+
+	/**
 	 * Convert 'patternList' into a newline-separated string and set it as
 	 * text of 'textEdit'.
 	 **/

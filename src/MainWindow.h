@@ -179,6 +179,11 @@ public slots:
     void updateFileDetailsView();
 
     /**
+     * Show or hide the details view.
+     **/
+    void setDetailsPanelVisible( bool visible );
+
+    /**
      * Copy the path of the current item (if there is one) to the system
      * clipboard for use in other applications.
      **/
@@ -188,6 +193,11 @@ public slots:
      * Move the selected items to the trash bin.
      **/
     void moveToTrash();
+
+    /**
+     * Open the "Find Files" dialog and display the results.
+     **/
+    void askFindFiles();
 
     /**
      * Navigate one directory level up.
@@ -272,12 +282,6 @@ protected slots:
     void showTreemapView();
 
     /**
-     * Switch between showing the treemap view beside the file directory
-     * or below it, depending on the corresponding action.
-     **/
-    void treemapAsSidePanel();
-
-    /**
      * Notification that a cleanup action was started.
      **/
     void startingCleanup( const QString & cleanupName );
@@ -296,6 +300,18 @@ protected slots:
      * visible.
      **/
     void navigateToUrl( const QString & url );
+
+    /**
+     * Notification that the current item changed: Find out the new current
+     * directory, check if that is in the bookmarks collection, and change the
+     * on/off status (i.e. the icon) of the bookmarksButton accordingly.
+     **/
+    void updateBookmarkButton( FileInfo * newCurrent );
+
+    /**
+     * Bookmark or un-bookmark the current directory.
+     **/
+    void bookmarkCurrentPath( bool isChecked );
 
     /**
      * Open the config dialog.
@@ -471,9 +487,18 @@ protected:
      * Show an error popup that a directory could not be opened and wait until
      * the user confirmed it.
      *
-     * The relevant informatoin is all in the exception.
+     * The relevant information is all in the exception.
      **/
     void showOpenDirErrorPopup( const SysCallFailedException & ex );
+
+    /**
+     * Handle a symlink as an argument to reading a new directory tree
+     * e.g. in openDir(): Follow the symlink and return the target URL.
+     *
+     * If it is a valid symlink, post a PanelMessage to inform the user about
+     * it. If it's a broken symlink, post an error as a PanelMessage.
+     **/
+    QString handleSymLink( const QString & origUrl ) const;
 
     /**
      * Handle mouse buttons: Activate history actions actionGoBack and
@@ -511,7 +536,10 @@ private:
 
 
 /**
- * Helper class for the different layouts of the tree view layout.
+ * Helper class for the different layouts of the tree view layout that
+ * correspond to the [L1], [L2], [L3] buttons in the tool bar where you can
+ * switch what columns are displayed, and whether or not to display the
+ * details panel.
  *
  * Notice that the column layouts are handled in the HeaderTweaker and its
  * ColumnLayout helper class; see also HeaderTweaker.h and HeaderTweaker.cpp.
@@ -519,14 +547,13 @@ private:
 class TreeLayout
 {
 public:
+
     TreeLayout( const QString & name ):
 	name( name ),
-	showCurrentPath( true ),
 	showDetailsPanel( true )
 	{}
 
     QString name;
-    bool    showCurrentPath;
     bool    showDetailsPanel;
 
 }; // class TreeLayout

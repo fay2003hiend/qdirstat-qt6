@@ -11,9 +11,8 @@
 #define FileInfo_h
 
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <limits.h>
+#include <sys/types.h>  // dev_t, mode_t, nlink_t
+#include <sys/stat.h>   // S_ISDIR() etc.
 
 #include <QTextStream>
 #include <QList>
@@ -62,10 +61,10 @@ namespace QDirStat
      * The most basic building block of a DirTree:
      *
      * Information about one single directory entry. This is the type of info
-     * typically obtained by stat() / lstat() or similar calls.
+     * typically obtained by stat() / lstat() or similar system calls.
      *
      * This class is tuned for size rather than speed: A typical Linux system
-     * easily has 150,000+ filesystem objects, and at least one entry of this
+     * easily has 500,000+ filesystem objects, and at least one entry of this
      * sort is required for each of them.
      *
      * This class provides stubs for children management, yet those stubs all
@@ -73,6 +72,13 @@ namespace QDirStat
      * Derived classes need to take care of that.
      *
      * @short Basic file information (like obtained by the lstat() sys call)
+     *
+     * Important derived classes:
+     *
+     * - DirInfo     for a directory
+     *   - DotEntry  to collect direct file children of a directory
+     *   - Attic     to collect ignored children
+     *   - PkgInfo   for a software package
      **/
     class FileInfo
     {
@@ -103,6 +109,9 @@ namespace QDirStat
 		  const QString & filenameWithoutPath,
 		  mode_t	  mode,
 		  FileSize	  size,
+                  bool            withUidGidPerm,
+                  uid_t           uid,
+                  gid_t           gid,
 		  time_t	  mtime,
 		  FileSize	  blocks = -1,
 		  nlink_t	  links	 = 1 );
@@ -177,7 +186,7 @@ namespace QDirStat
 	 * Notice: You can simply use the QTextStream operator<< to output
 	 * exactly this:
 	 *
-	 * logDebug() << "Found fileInfo " << info << endl;
+	 * logDebug() << "Found fileInfo " << info << Qt::endl;
 	 **/
 	virtual QString debugUrl() const;
 
@@ -249,6 +258,14 @@ namespace QDirStat
 	 * file.
 	 **/
 	bool hasGid() const;
+
+	/**
+	 * Return 'true' if this FileInfo has known permissions.
+	 *
+	 * It might not have that information e.g. if it was read from a cache
+	 * file.
+	 **/
+        bool hasPermissions() const;
 
 	/**
 	 * File permissions formatted like in "ls -l", i.e. "-rwxrwxrwx",
@@ -515,6 +532,14 @@ namespace QDirStat
 	 **/
 	bool filesystemCanReportBlocks() const;
 
+        /**
+         * Return 'true' if this is a dominant item among its siblings, i.e. if
+         * its total size is much larger than the other items on the same level.
+         *
+         * This forwards the query to the parent, if there is one.
+         **/
+        bool isDominant();
+
 
 	//
 	// Tree management
@@ -534,7 +559,7 @@ namespace QDirStat
 	/**
 	 * Set the "parent" pointer.
 	 **/
-	void setParent( DirInfo *newParent ) { _parent = newParent; }
+	void setParent( DirInfo * newParent ) { _parent = newParent; }
 
 	/**
 	 * Returns a pointer to the next entry on the same level
@@ -932,9 +957,10 @@ namespace QDirStat
 
 	short		_magic;			// magic number to detect if this object is valid
 	QString		_name;			// the file name (without path!)
-	bool		_isLocalFile  :1;	// flag: local or remote file?
-	bool		_isSparseFile :1;	// (cache) flag: sparse file (file with "holes")?
-	bool		_isIgnored    :1;	// flag: ignored by rule?
+	bool		_isLocalFile   :1;	// flag: local or remote file?
+	bool		_isSparseFile  :1;	// (cache) flag: sparse file (file with "holes")?
+	bool		_isIgnored     :1;	// flag: ignored by rule?
+        bool            _hasUidGidPerm :1;      // flag: has UID / GID / permissions?
 	dev_t		_device;		// device this object resides on
 	mode_t		_mode;			// file permissions + object type
 	nlink_t		_links;			// number of links

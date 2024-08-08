@@ -7,7 +7,7 @@
  */
 
 
-#include <ctype.h>
+#include <ctype.h>      // isspace()
 #include <QUrl>
 
 #include "DirTreeCache.h"
@@ -18,6 +18,7 @@
 #include "FormatUtil.h"
 #include "Logger.h"
 #include "Exception.h"
+#include "BrokenLibc.h"     // ALLPERMS
 
 #include <QRegularExpression>
 
@@ -37,6 +38,7 @@ using namespace QDirStat;
 
 
 CacheWriter::CacheWriter( const QString & fileName, DirTree *tree )
+    : _withUidGuidPerm( true )
 {
     _ok = writeCache( fileName, tree );
 }
@@ -50,8 +52,13 @@ CacheWriter::~CacheWriter()
 
 bool CacheWriter::writeCache( const QString & fileName, DirTree *tree )
 {
-    if ( ! tree || ! tree->root() )
+    if ( ! tree )
 	return false;
+
+    FileInfo * firstToplevel = tree->firstToplevel();
+
+    if ( ! firstToplevel )
+        return false;
 
     gzFile cache = gzopen( (const char *) fileName.toUtf8(), "w" );
 
@@ -61,12 +68,26 @@ bool CacheWriter::writeCache( const QString & fileName, DirTree *tree )
 	return false;
     }
 
-    gzprintf( cache, "[qdirstat %s cache file]\n", CACHE_FORMAT_VERSION );
+    _withUidGuidPerm = firstToplevel->hasUid();
+    const char * version = _withUidGuidPerm ? "2.0" : "1.0";
+
+    gzprintf( cache, "[qdirstat %s cache file]\n", version );
     gzprintf( cache,
-	     "# Do not edit!\n"
-	     "#\n"
-	     "# Type\tpath\t\tsize\tmtime\t\t<optional fields>\n"
-	     "\n" );
+              "# Do not edit!\n"
+              "#\n" );
+
+    if ( _withUidGuidPerm )
+    {
+        gzprintf( cache,
+                  "# Type  path                            size     uid   gid  perm.       mtime      <optional fields>\n"
+                  "#\n" );
+    }
+    else
+    {
+        gzprintf( cache,
+                  "# Type  path                            size    mtime      <optional fields>\n"
+                  "#\n" );
+    }
 
     writeTree( cache, tree->root()->firstChild() );
     gzclose( cache );
@@ -132,19 +153,30 @@ void CacheWriter::writeItem( gzFile cache, FileInfo * item )
     {
 	// Use absolute path
 
-	gzprintf( cache, " %s", urlEncoded( item->url() ).data() );
+	gzprintf( cache, " %-30s", urlEncoded( item->url() ).data() );
     }
     else
     {
 	// Use relative path
 
-	gzprintf( cache, "\t%s", urlEncoded( item->name() ).data() );
+	gzprintf( cache, "\t%-24s", urlEncoded( item->name() ).data() );
     }
 
 
     // Write size
 
     gzprintf( cache, "\t%s", formatSize( item->rawByteSize() ).toUtf8().data() );
+
+
+    // Format 2.0 only: UID, GID, permissions
+
+    if ( _withUidGuidPerm )
+    {
+        gzprintf( cache, "\t%d  %d  0%3o",
+                  item->uid(),
+                  item->gid(),
+                  item->mode() & ALLPERMS );
+    }
 
 
     // Write mtime
@@ -285,10 +317,13 @@ bool CacheReader::read( int maxLines )
 
 void CacheReader::addItem()
 {
-    if ( fieldsCount() < 4 )
+    int expectedFields = _withUidGidPerm ? 7 : 4;
+
+    if ( fieldsCount() < expectedFields )
     {
 	logError() << "Syntax error in " << _fileName << ":" << _lineNo
-		   << ": Expected at least 4 fields, saw only " << fieldsCount()
+		   << ": Expected at least " << expectedFields
+                   << " fields, saw only " << fieldsCount()
 		   << Qt::endl;
 
 	setReadError( _lastDir );
@@ -307,6 +342,11 @@ void CacheReader::addItem()
     char * type		= field( n++ );
     char * raw_path	= field( n++ );
     char * size_str	= field( n++ );
+
+    char * uid_str      = _withUidGidPerm ? field( n++ ) : 0;
+    char * gid_str      = _withUidGidPerm ? field( n++ ) : 0;
+    char * perm_str     = _withUidGidPerm ? field( n++ ) : 0;
+
     char * mtime_str	= field( n++ );
     char * blocks_str	= 0;
     char * links_str	= 0;
@@ -356,6 +396,15 @@ void CacheReader::addItem()
 	    default: break;
 	}
     }
+
+
+    // UID, GID, permissions
+
+    uid_t  uid  = uid_str  ? strtol( uid_str,  0, 10 ) : 0;
+    gid_t  gid  = gid_str  ? strtol( gid_str,  0, 10 ) : 0;
+    mode_t perm = perm_str ? strtol( perm_str, 0,  8 ) : 0;
+
+    mode |= perm;
 
 
     // MTime
@@ -450,7 +499,9 @@ void CacheReader::addItem()
 	logDebug() << "Creating DirInfo for " << url << " with parent " << parent << Qt::endl;
 #endif
 	DirInfo * dir = new DirInfo( _tree, parent, url,
-				     mode, size, mtime );
+				     mode, size,
+                                     _withUidGidPerm, uid, gid,
+                                     mtime );
 	dir->setReadState( DirReading );
 	_lastDir = dir;
 
@@ -494,8 +545,10 @@ void CacheReader::addItem()
 #endif
 
 	    FileInfo * item = new FileInfo( _tree, parent, name,
-					    mode, size, mtime,
-					    blocks, links );
+					    mode, size,
+                                            _withUidGidPerm, uid, gid,
+                                            mtime,
+                                            blocks, links );
 	    parent->insertChild( item );
 	    _tree->childAddedNotify( item );
 	}
@@ -570,10 +623,9 @@ bool CacheReader::checkHeader()
 
     if ( _ok )
     {
-	QString version = field( 1 );
-
-	// currently not checking version number
-	// for future use
+	QString versionStr = field( 1 );
+        float   version    = versionStr.toFloat( &_ok );
+        _withUidGidPerm    = _ok && version > 1.99;
 
 	if ( ! _ok )
 	    logError() << _fileName << ":" << _lineNo

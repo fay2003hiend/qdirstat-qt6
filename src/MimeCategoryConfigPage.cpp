@@ -130,17 +130,15 @@ void MimeCategoryConfigPage::colorChanged( const QString & newColor )
 {
     QListWidgetItem * currentItem = listWidget()->currentItem();
 
+    // Always set the new colour, even if empty or invalid, for the mini-treemap to rebuild
+    QColor color( newColor );
+    _ui->treemapView->setFixedColor( color );
+    _ui->treemapView->rebuildTreemap();
+
     if ( currentItem )
     {
-	QColor color( newColor );
-
-	if ( color.isValid() )
-	{
-	    MimeCategory * category = CATEGORY_CAST( value( currentItem ) );
-	    category->setColor( color );
-	    _ui->treemapView->setFixedColor( color );
-	    _ui->treemapView->rebuildTreemap();
-	}
+	MimeCategory * category = CATEGORY_CAST( value( currentItem ) );
+	category->setColor( color );
     }
 }
 
@@ -187,25 +185,25 @@ void MimeCategoryConfigPage::save( void * value )
 
 void MimeCategoryConfigPage::load( void * value )
 {
-    MimeCategory * category = CATEGORY_CAST( value );
-    // logDebug() << category << Qt::endl;
-
-    if ( ! category || updatesLocked() )
+    if ( updatesLocked() )
 	return;
 
-    _ui->nameLineEdit->setText( category->name() );
-    QColor color = category->color();
-    _ui->colorLineEdit->setText( color.isValid() ?
-				 category->color().name() : "" );
+    MimeCategory * category = CATEGORY_CAST( value );
 
-    setPatternList( _ui->caseInsensitivePatternsTextEdit,
-		    category->humanReadablePatternList( Qt::CaseInsensitive ) );
+    // Populate the name and patterns from this category
+    _ui->nameLineEdit->setText( category ? category->name() : "" );
 
-    setPatternList( _ui->caseSensitivePatternsTextEdit,
-		    category->humanReadablePatternList( Qt::CaseSensitive ) );
+    QStringList patternList = category ? category->humanReadablePatternList( Qt::CaseSensitive ) : QStringList();
+    setPatternList( _ui->caseSensitivePatternsTextEdit, patternList );
 
-    _ui->treemapView->setFixedColor( color.isValid() ? color : Qt::red );
-    _ui->treemapView->rebuildTreemap();
+    patternList = category ? category->humanReadablePatternList( Qt::CaseInsensitive ) : QStringList();
+    setPatternList( _ui->caseInsensitivePatternsTextEdit, patternList );
+
+    // Set this category colour in the form and mini-treemap
+    QColor color = category ? category->color() : QColor();
+    _ui->colorLineEdit->setText( color.isValid() ? category->color().name() : "" );
+    _ui->treemapView->setFixedColor( color );
+   // _ui->treemapView->rebuildTreemap(); // it rebuilds itself when the colour is set
 }
 
 
@@ -273,19 +271,19 @@ void MimeCategoryConfigPage::populateTreemapView()
     //	   dir2
     //	     dir21
 
-    DirInfo * topDir = new DirInfo( _dirTree, root, "demo", mode, dirSize, mtime );
+    DirInfo * topDir = new DirInfo( _dirTree, root, "demo", mode, dirSize, false, 0, 0, mtime );
     CHECK_NEW( topDir );
     root->insertChild( topDir );
 
-    DirInfo * dir1 = new DirInfo( _dirTree, topDir, "dir1", mode, dirSize, mtime );
+    DirInfo * dir1 = new DirInfo( _dirTree, topDir, "dir1", mode, dirSize, false, 0, 0, mtime );
     CHECK_NEW( dir1 );
     topDir->insertChild( dir1 );
 
-    DirInfo * dir2 = new DirInfo( _dirTree, topDir, "dir2", mode, dirSize, mtime );
+    DirInfo * dir2 = new DirInfo( _dirTree, topDir, "dir2", mode, dirSize, false, 0, 0, mtime );
     CHECK_NEW( dir2 );
     topDir->insertChild( dir2 );
 
-    DirInfo * dir21 = new DirInfo( _dirTree, dir2, "dir21", mode, dirSize, mtime );
+    DirInfo * dir21 = new DirInfo( _dirTree, dir2, "dir21", mode, dirSize, false, 0, 0, mtime );
     CHECK_NEW( dir21 );
     dir2->insertChild( dir21 );
 
@@ -314,7 +312,9 @@ void MimeCategoryConfigPage::populateTreemapView()
 	// Create a FileInfo item and add it to the parent
 	FileInfo * file = new FileInfo( _dirTree, parent,
 					QString( "File_%1" ).arg( i ),
-					mode, fileSize, mtime );
+					mode,
+                                        false, 0, 0, // withUidGid, uid, gid
+                                        fileSize, mtime );
 	CHECK_NEW( file );
 	parent->insertChild( file );
     }
@@ -326,3 +326,42 @@ void MimeCategoryConfigPage::populateTreemapView()
     _ui->treemapView->setDirTree( _dirTree );
 }
 
+
+void MimeCategoryConfigPage::updateActions()
+{
+    ListEditor::updateActions();
+
+    setActions( listWidget()->currentItem() );
+}
+
+
+void MimeCategoryConfigPage::currentItemChanged( QListWidgetItem * current,
+                                                 QListWidgetItem * previous)
+{
+    //logDebug() << current << ", " << previous << Qt::endl;
+
+    ListEditor::currentItemChanged( current, previous );
+
+    setActions( current );
+}
+
+
+void MimeCategoryConfigPage::setActions( const QListWidgetItem * currentItem )
+{
+    const bool isSymlink = currentItem && currentItem->text() == CATEGORY_SYMLINKS;
+    const bool isExecutable = currentItem && currentItem->text() == CATEGORY_EXECUTABLES;
+
+    // Name can't be changed for symlinks and executables
+    _ui->nameLineEdit->setEnabled( currentItem && !isSymlink && !isExecutable );
+
+    // Patterns can't be changed for symlinks
+    _ui->patternsTopWidget->setEnabled( currentItem && !isSymlink );
+    _ui->patternsBottomWidget->setEnabled( currentItem && !isSymlink );
+
+    // Symlinks and executables can't be removed
+    enableButton( _ui->removeButton, currentItem && !isSymlink && !isExecutable );
+
+    // Colour can be edited for any item
+    _ui->colorLineEdit->setEnabled( currentItem );
+    enableButton( _ui->colorButton, currentItem );
+}

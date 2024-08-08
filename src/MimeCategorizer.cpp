@@ -6,7 +6,6 @@
  *   Author:	Stefan Hundhammer <Stefan.Hundhammer@gmx.de>
  */
 
-
 #include "MimeCategorizer.h"
 #include "FileInfo.h"
 #include "Settings.h"
@@ -56,15 +55,35 @@ void MimeCategorizer::clear()
 }
 
 
+QColor MimeCategorizer::color( FileInfo * item )
+{
+    MimeCategory *mimeCategory = category( item );
+
+    return mimeCategory ? mimeCategory->color() : Qt::white;
+}
+
+
 MimeCategory * MimeCategorizer::category( FileInfo * item )
 {
     CHECK_PTR  ( item );
     CHECK_MAGIC( item );
 
-    if ( item->isDir() || item->isDirInfo() )
-	return 0;
+    if ( item->isSymLink() )
+    {
+	return matchCategoryName( CATEGORY_SYMLINKS );
+    }
+    else if ( item->isFile() )
+    {
+	MimeCategory *matchedCategory = category( item->name() );
+	if ( ! matchedCategory && ( item->mode() & S_IXUSR  ) == S_IXUSR )
+	    return matchCategoryName( CATEGORY_EXECUTABLES );
+
+	return matchedCategory;
+    }
     else
-	return category( item->name() );
+    {
+	return 0;
+    }
 }
 
 
@@ -138,6 +157,18 @@ MimeCategory * MimeCategorizer::matchPatterns( const QString & filename ) const
 		    return category;
 	    }
 	}
+    }
+
+    return 0; // No match
+}
+
+
+MimeCategory * MimeCategorizer::matchCategoryName( const QString & categoryName ) const
+{
+    foreach ( MimeCategory * category, _categories )
+    {
+	if ( category && category->name() == categoryName )
+	    return category;
     }
 
     return 0; // No match
@@ -230,6 +261,8 @@ void MimeCategorizer::readSettings()
 
     if ( _categories.isEmpty() )
 	addDefaultCategories();
+
+    ensureMandatoryCategories();
 }
 
 
@@ -270,6 +303,36 @@ void MimeCategorizer::writeSettings()
 }
 
 
+void MimeCategorizer::ensureMandatoryCategories()
+{
+    // Remember this category so we don't have to search for it every time
+
+    _executableCategory = matchCategoryName( CATEGORY_EXECUTABLES );
+    if ( !_executableCategory )
+    {
+	// Special catch-all category for files that don't match anything else.
+        // This category cannot be deleted.
+
+	_executableCategory = new MimeCategory( tr( CATEGORY_EXECUTABLES ), Qt::magenta );
+	CHECK_NEW( _executableCategory );
+	add( _executableCategory );
+    }
+
+    // Remember this category so we don't have to search for it every time
+    _symlinkCategory = matchCategoryName( CATEGORY_SYMLINKS );
+
+    if ( !_symlinkCategory )
+    {
+	// Special category for symlinks regardless of the filename.
+        // This category cannot be deleted.
+
+	_symlinkCategory = new MimeCategory( tr( CATEGORY_SYMLINKS ), Qt::blue );
+	CHECK_NEW( _symlinkCategory );
+	add( _symlinkCategory );
+    }
+}
+
+
 void MimeCategorizer::addDefaultCategories()
 {
     MimeCategory * junk = new MimeCategory( tr( "Junk" ), Qt::red );
@@ -279,6 +342,8 @@ void MimeCategorizer::addDefaultCategories()
     junk->addSuffix( "~"   );
     junk->addSuffix( "bak" );
     junk->addPattern( "core", Qt::CaseSensitive );
+    junk->addSuffix( "old" );
+    junk->addSuffix( "orig" );
 
 
     MimeCategory * archives = new MimeCategory( tr( "Compressed Archives" ), Qt::green );
@@ -307,6 +372,7 @@ void MimeCategorizer::addDefaultCategories()
 			   << "tz2"
 			   << "tzst"
 			   << "zip"
+			   << "zpaq"
 			   );
 
     archives->addPattern( "pack-*.pack" );      // Git archive
@@ -377,6 +443,7 @@ void MimeCategorizer::addDefaultCategories()
 			 << "asf"
 			 << "avi"
 			 << "divx"
+			 << "dv"
 			 << "flc"
 			 << "fli"
 			 << "flv"
@@ -384,12 +451,12 @@ void MimeCategorizer::addDefaultCategories()
 			 << "m4v"
 			 << "mk3d"
 			 << "mkv"
-			 << "mng"
 			 << "mov"
 			 << "mp2"
 			 << "mp4"
 			 << "mpeg"
 			 << "mpg"
+			 << "mts"
 			 << "ogm"
 			 << "ogv"
 			 << "rm"
@@ -407,7 +474,11 @@ void MimeCategorizer::addDefaultCategories()
 
     music->addSuffixes( QStringList()
 			<< "aac"
+			<< "aif"
 			<< "ape"
+			<< "caf"
+			<< "dff"
+			<< "dsf"
 			<< "f4a"
 			<< "f4b"
 			<< "flac"
@@ -421,8 +492,11 @@ void MimeCategorizer::addDefaultCategories()
 			<< "opus"
 			<< "ra"
 			<< "rax"
+			<< "w64"
 			<< "wav"
 			<< "wma"
+			<< "wv"
+			<< "wvc"
 			);
 
 
@@ -439,6 +513,7 @@ void MimeCategorizer::addDefaultCategories()
 		      << "epub"
 		      << "htm"
 		      << "html"
+		      << "ly"
 		      << "md"
 		      << "odb"
 		      << "odc"
@@ -491,7 +566,7 @@ void MimeCategorizer::addDefaultCategories()
     add( obj );
 
     obj->addSuffixes( QStringList()
-		      << "o" << "lo" << "ko" << "Po" << "al" << "la" << "moc" << "elc" << "log" << "pyc"
+		      << "o" << "lo" << "ko" << "Po" << "al" << "la" << "moc" << "elc" << "pyc"
 		      , Qt::CaseSensitive );
 
     obj->addPatterns( QStringList()

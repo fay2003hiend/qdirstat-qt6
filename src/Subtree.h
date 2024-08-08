@@ -45,7 +45,8 @@ namespace QDirStat
          **/
         Subtree( DirTree * tree = 0 ):
             _tree( tree ),
-            _useRootFallback( true )
+            _useRootFallback( true ),
+            _useParentFallback( false )
             {}
 
         /**
@@ -71,6 +72,17 @@ namespace QDirStat
         void setUseRootFallback( bool val ) { _useRootFallback = val; }
 
         /**
+         * Return 'true if the item's parent should be used as a fallback if no
+         * item with that URL can be located. The default is 'false'.
+         **/
+        bool useParentFallback() const { return _useParentFallback; }
+
+        /**
+         * Enable or disable using the item's parent URL as a fallback.
+         **/
+        void setUseParentFallback( bool val ) { _useParentFallback = val; }
+
+        /**
          * Get the corresponding subtree item from the DirTree via the URL.
          *
          * If a URL was set before (typically by setting the subtree), this
@@ -85,6 +97,16 @@ namespace QDirStat
          * URL could not be found in the DirTree.
          **/
         FileInfo * subtree();
+
+        /**
+         * Get the corresponding DirInfo from the DirTree via the URL.
+         * This is very much like 'subtree()', but if the result is not a
+         * DirInfo, it traverses up the tree to get the parent.
+         *
+         * Remember that this may also return a DotEntry, a PkgInfo or an Attic
+         * because they are all subclasses of DirInfo.
+         **/
+        DirInfo * dir();
 
         /**
          * Dereference operator. This is an alias for subtree(): Get the
@@ -110,7 +132,7 @@ namespace QDirStat
 
         /**
          * Return 'true' if this subtree is empty, i.e. if it was cleared or if
-         * no FileInfo was ever set.
+         * no FileInfo and no URL was ever set.
          **/
         bool isEmpty() { return _url.isEmpty(); }
 
@@ -144,7 +166,7 @@ namespace QDirStat
          *
          * This is typically not necessary; it is implicitly done in set().
          **/
-        void setUrl( const QString & newUrl ) { _url = newUrl; }
+        void setUrl( const QString & newUrl );
 
     protected:
 
@@ -166,8 +188,10 @@ namespace QDirStat
 
         DirTree * _tree;
         QString   _url;
+        QString   _parentUrl;
 
         bool      _useRootFallback;
+        bool      _useParentFallback;
 
     };	// class Subtree
 

@@ -12,6 +12,7 @@
 
 #include <QAbstractItemModel>
 #include <QColor>
+#include <QFont>
 #include <QIcon>
 #include <QSet>
 #include <QTimer>
@@ -130,6 +131,35 @@ namespace QDirStat
 	 * Return 'true' if the application uses a light widget theme.
 	 **/
 	static bool usingLightTheme() { return ! usingDarkTheme(); }
+
+	/**
+	 * Return 'true' if dominant tree items should be shown in bold font,
+	 * 'false' if not.
+	 **/
+	bool useBoldForDominantItems() const { return _useBoldForDominantItems; }
+
+	/**
+	 * Set to 'true' if dominant tree items should be shown in bold font,
+	 * 'false' if not.
+	 **/
+	void setUseBoldForDominantItems( bool val )
+	    { _useBoldForDominantItems = val; }
+
+	/**
+	 * Return the font used for bold items.
+	 **/
+	QFont boldItemFont() const { return _boldItemFont; }
+
+	/**
+	 * Set the font used for bold items.
+	 **/
+	void setBoldItemFont( const QFont & font ) { _boldItemFont = font; }
+
+        /**
+         * Return the icon indicate an item's type (file, directory etc.)
+         * or a null icon if the type cannot be determined.
+         **/
+        QIcon itemTypeIcon( FileInfo * item ) const;
 
 
     public slots:
@@ -251,7 +281,7 @@ namespace QDirStat
 	Qt::SortOrder sortOrder() const { return _sortOrder; }
 
 	//
-	// Reimplented from QAbstractItemModel:
+	// Reimplemented from QAbstractItemModel:
 	//
 
 	/**
@@ -398,7 +428,6 @@ namespace QDirStat
 	void invalidatePersistent( FileInfo * subtree,
 				   bool	      includeParent );
 
-
     protected:
 	/**
 	 * Create a new tree (and delete the old one if there is one)
@@ -434,15 +463,22 @@ namespace QDirStat
 	 **/
 	bool anyAncestorBusy( FileInfo * item ) const;
 
-	/**
-	 * Return the text for (model) column 'col' for 'item'.
-	 **/
-	QVariant columnText( FileInfo * item, int col ) const;
+
+	//
+	// Data for different roles for each item (row) and column
+	//
+
+	QVariant columnText	       ( FileInfo * item, int col ) const;
+	QVariant columnIcon	       ( FileInfo * item, int col ) const;
+	QVariant columnAlignment       ( FileInfo * item, int col ) const;
+	QVariant columnFont	       ( FileInfo * item, int col ) const;
+	QVariant dominantItemColumnFont( FileInfo * item, int col ) const;
 
 	/**
-	 * Return the icon for (model) column 'col' for 'item'.
+	 * Raw data for direct communication with our item delegates
+	 * (PercentBarDelegate, SizeColDelegate)
 	 **/
-	QVariant columnIcon( FileInfo * item, int col ) const;
+	QVariant columnRawData	       ( FileInfo * item, int col ) const;
 
 	/**
 	 * Return the number of direct children (plus the attic if there is
@@ -496,11 +532,14 @@ namespace QDirStat
 	DataColumn	 _sortCol;
 	Qt::SortOrder	 _sortOrder;
 	bool		 _removingRows;
+	bool		 _useBoldForDominantItems;
 
-	// Colors
+	// Colors and fonts
 
 	QColor _dirReadErrColor;
 	QColor _subtreeReadErrColor;
+
+	QFont  _boldItemFont;
 
 
 	// The various icons

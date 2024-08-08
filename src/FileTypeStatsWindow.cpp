@@ -7,7 +7,7 @@
  */
 
 
-#include <algorithm>
+#include <algorithm>    // std::sort()
 
 #include <QMenu>
 
@@ -144,6 +144,8 @@ void FileTypeStatsWindow::populate( FileInfo * newSubtree )
 
     _ui->heading->setText( tr( "File Type Statistics for %1" )
                            .arg( _subtree.url() ) );
+
+    // Don't sort until all items are added
     _ui->treeWidget->setSortingEnabled( false );
 
 
@@ -162,20 +164,29 @@ void FileTypeStatsWindow::populate( FileInfo * newSubtree )
 
 	if ( category )
 	{
-	    FileSize sum	= it.value();
-	    int	     count	= _stats->categoryCount( category );
-	    double   percentage = _stats->percentage( sum );
+            //
+            // Add a category item
+            //
 
-	    CategoryFileTypeItem * item =
-		new CategoryFileTypeItem( category, count, sum, percentage );
-	    CHECK_NEW( item );
+	    FileSize sum   = it.value();
+            int	     count = _stats->categoryCount( category );
 
-	    _ui->treeWidget->addTopLevelItem( item );
-	    item->setBold();
-	    categoryItem[ category ] = item;
+            CategoryFileTypeItem * catItem = addCategoryItem( category, count, sum );
+	    categoryItem[ category ] = catItem;
 
 	    if ( category == _stats->otherCategory() )
-		otherCategoryItem = item;
+		otherCategoryItem = catItem;
+            else
+            {
+                if ( _stats->categoryNonSuffixRuleCount( category ) > 0 )
+                {
+                    // Add an <Other> item below the category for files
+                    // matching any non-suffix rules
+
+                    SuffixFileTypeItem * item = addNonSuffixRuleItem( category );
+                    catItem->addChild( item );
+                }
+            }
 	}
     }
 
@@ -194,16 +205,12 @@ void FileTypeStatsWindow::populate( FileInfo * newSubtree )
 	  it != _stats->suffixSumEnd();
 	  ++it )
     {
-	QString	 suffix	    = it.key();
-	FileSize sum	    = it.value();
-	int	 count	    = _stats->suffixCount( suffix );
-	double	 percentage = _stats->percentage( sum );
+	QString	 suffix	= it.key();
+	FileSize sum	= it.value();
+	int	 count	= _stats->suffixCount( suffix );
 
+	SuffixFileTypeItem * item = addSuffixFileTypeItem( suffix, count, sum );
 	MimeCategory * parentCategory = _stats->category( suffix );
-
-	SuffixFileTypeItem * item = new SuffixFileTypeItem( suffix, count, sum, percentage );
-	CHECK_NEW( item );
-
 
 	if ( parentCategory )
 	{
@@ -231,53 +238,102 @@ void FileTypeStatsWindow::populate( FileInfo * newSubtree )
 
     if ( ! otherItems.isEmpty() )
     {
-	FileTypeItemCompare cmp;
-	std::sort( otherItems.begin(), otherItems.end(), cmp );
-	double	percentage = _stats->percentage( otherSum );
-	QString name = otherItems.size() > TOP_X ?
-	    tr( "Other (Top %1)" ).arg( TOP_X ) : tr( "Other" );
-
 	if ( ! otherCategoryItem )
 	{
-	    otherCategoryItem = new CategoryFileTypeItem( _stats->otherCategory(),
-							  otherCount,
-							  otherSum,
-							  percentage );
-	    CHECK_NEW( otherCategoryItem );
+            otherCategoryItem = addCategoryItem( _stats->otherCategory(),
+                                                 otherCount,
+                                                 otherSum );
 	}
 
-	otherCategoryItem->setText( 0, name );
-	otherCategoryItem->setBold();
-	_ui->treeWidget->addTopLevelItem( otherCategoryItem );
+	QString name = otherItems.size() > TOP_X ?
+	    tr( "Other (Top %1)" ).arg( TOP_X ) : tr( "Other" );
+        otherCategoryItem->setText( 0, name );
 
-	int top_x = qMin( TOP_X, otherItems.size() );
-
-	for ( int i=0; i < top_x; ++i )
-	{
-	    FileTypeItem * item = otherItems.takeFirst();
-	    otherCategoryItem->addChild( item );
-	}
-
-	if ( ! otherItems.empty() )
-	{
-#if 1
-	    QStringList suffixes;
-
-	    foreach ( FileTypeItem * item, otherItems )
-		suffixes << item->text(0);
-
-	    logDebug() << "Discarding " << static_cast<int>(otherItems.size())
-		       << " suffixes below <other>: "
-		       << suffixes.join( ", " )
-		       << Qt::endl;
-#endif
-	    qDeleteAll( otherItems );
-	}
+        addTopXOtherItems( otherCategoryItem, otherItems );
     }
 
     _ui->treeWidget->setSortingEnabled( true );
     _ui->treeWidget->sortByColumn( FT_TotalSizeCol, Qt::DescendingOrder );
 }
+
+
+CategoryFileTypeItem *
+FileTypeStatsWindow::addCategoryItem( MimeCategory * category, int count, FileSize sum )
+{
+    double percentage = _stats->percentage( sum );
+
+    CategoryFileTypeItem * item = new CategoryFileTypeItem( category, count, sum, percentage );
+    CHECK_NEW( item );
+
+    _ui->treeWidget->addTopLevelItem( item );
+    item->setBold();
+
+    return item;
+}
+
+
+SuffixFileTypeItem *
+FileTypeStatsWindow::addNonSuffixRuleItem( MimeCategory * category )
+{
+    QString  suffix	= NON_SUFFIX_RULE;
+    FileSize sum	= _stats->categoryNonSuffixRuleSum  ( category );
+    int	     count	= _stats->categoryNonSuffixRuleCount( category );
+
+    SuffixFileTypeItem * item = addSuffixFileTypeItem( suffix, count, sum );
+
+    return item;
+}
+
+
+SuffixFileTypeItem *
+FileTypeStatsWindow::addSuffixFileTypeItem( const QString & suffix,
+                                            int             count,
+                                            FileSize        sum     )
+{
+    double percentage = _stats->percentage( sum );
+
+    SuffixFileTypeItem * item = new SuffixFileTypeItem( suffix, count, sum, percentage );
+    CHECK_NEW( item );
+
+    return item;
+}
+
+
+void FileTypeStatsWindow::addTopXOtherItems( CategoryFileTypeItem  * otherCategoryItem,
+                                             QList<FileTypeItem *> & otherItems        )
+{
+    FileTypeItemCompare cmp;
+    std::sort( otherItems.begin(), otherItems.end(), cmp );
+
+    int top_x = qMin( TOP_X, otherItems.size() );
+
+    for ( int i=0; i < top_x; ++i )
+    {
+        // Take the X first items out of the otherItems list
+        // and add them as children of the "Other" category
+
+        FileTypeItem * item = otherItems.takeFirst();
+        otherCategoryItem->addChild( item );
+    }
+
+    if ( ! otherItems.empty() )
+    {
+#if 1
+        QStringList suffixes;
+
+        foreach ( FileTypeItem * item, otherItems )
+            suffixes << item->text(0);
+
+        logDebug() << "Discarding " << static_cast<int>(otherItems.size())
+                   << " suffixes below <other>: "
+                   << suffixes.join( ", " )
+                   << Qt::endl;
+#endif
+        // Delete all items that are not in the top X
+        qDeleteAll( otherItems );
+    }
+}
+
 
 
 void FileTypeStatsWindow::locateCurrentFileType()
@@ -347,6 +403,12 @@ QString FileTypeStatsWindow::currentSuffix() const
 
 	return QString();
     }
+    if ( current->suffix() == NON_SUFFIX_RULE )
+    {
+	logWarning() << "NON_SUFFIX_RULE selected" << Qt::endl;
+
+	return QString();
+    }
 
     return current->suffix();
 }
@@ -361,7 +423,9 @@ void FileTypeStatsWindow::enableActions( QTreeWidgetItem * currentItem )
 	SuffixFileTypeItem * suffixItem =
 	    dynamic_cast<SuffixFileTypeItem *>( currentItem );
 
-	enabled = suffixItem && suffixItem->suffix() != NO_SUFFIX;
+	enabled = suffixItem &&
+            suffixItem->suffix() != NO_SUFFIX &&
+            suffixItem->suffix() != NON_SUFFIX_RULE;
     }
 
     _ui->actionLocate->setEnabled( enabled );
@@ -404,6 +468,8 @@ SuffixFileTypeItem::SuffixFileTypeItem( const QString & suffix,
 {
 	if ( suffix == NO_SUFFIX )
 	    setText( FT_NameCol,  QObject::tr( "<No Extension>" ) );
+	else if ( suffix == NON_SUFFIX_RULE )
+	    setText( FT_NameCol,  QObject::tr( "<Other>" ) );
 	else
 	    _suffix = "*." + suffix;
 }

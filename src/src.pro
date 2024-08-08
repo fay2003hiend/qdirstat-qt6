@@ -51,7 +51,8 @@ SOURCES	  = main.cpp			\
             QDirStatApp.cpp             \
 	    ActionManager.cpp		\
 	    AdaptiveTimer.cpp		\
-	    Attic.cpp			\
+            Attic.cpp			\
+            BookmarksManager.cpp        \
 	    BreadcrumbNavigator.cpp	\
 	    BucketsTableModel.cpp	\
 	    BusyPopup.cpp		\
@@ -78,7 +79,7 @@ SOURCES	  = main.cpp			\
 	    ExcludeRules.cpp		\
 	    ExcludeRulesConfigPage.cpp	\
 	    ExistingDirCompleter.cpp	\
-	    ExistingDirValidator.cpp	\
+            ExistingDirValidator.cpp	\
 	    FileAgeStats.cpp		\
 	    FileAgeStatsWindow.cpp	\
 	    FileDetailsView.cpp		\
@@ -86,13 +87,15 @@ SOURCES	  = main.cpp			\
 	    FileInfoIterator.cpp	\
 	    FileInfoSet.cpp		\
 	    FileInfoSorter.cpp		\
-	    FileMTimeStats.cpp		\
+            FileMTimeStats.cpp		\
+            FileSearchFilter.cpp        \
 	    FileSizeLabel.cpp		\
 	    FileSizeStats.cpp		\
 	    FileSizeStatsWindow.cpp	\
 	    FileSystemsWindow.cpp	\
 	    FileTypeStats.cpp		\
 	    FileTypeStatsWindow.cpp	\
+            FindFilesDialog.cpp         \
 	    FormatUtil.cpp		\
 	    GeneralConfigPage.cpp	\
 	    HeaderTweaker.cpp		\
@@ -135,6 +138,7 @@ SOURCES	  = main.cpp			\
 	    ProcessStarter.cpp		\
 	    Refresher.cpp		\
 	    RpmPkgManager.cpp		\
+	    SearchFilter.cpp		\
 	    SelectionModel.cpp		\
 	    Settings.cpp		\
 	    SettingsHelpers.cpp		\
@@ -157,6 +161,7 @@ HEADERS	  =				\
 	    ActionManager.h		\
 	    AdaptiveTimer.h		\
 	    Attic.h			\
+            BookmarksManager.h          \
             BreadcrumbNavigator.h	\
             BrokenLibc.h                \
 	    BucketsTableModel.h		\
@@ -192,6 +197,7 @@ HEADERS	  =				\
 	    FileInfoSet.h		\
 	    FileInfoSorter.h		\
 	    FileMTimeStats.h		\
+            FileSearchFilter.h          \
 	    FileSizeLabel.h		\
 	    FileSizeStats.h		\
 	    FileSizeStatsWindow.h	\
@@ -232,6 +238,7 @@ HEADERS	  =				\
 	    Qt4Compat.h			\
 	    Refresher.h			\
 	    RpmPkgManager.h		\
+	    SearchFilter.h              \
 	    SelectionModel.h		\
 	    Settings.h			\
 	    SettingsHelpers.h		\
@@ -250,6 +257,7 @@ HEADERS	  =				\
 	    FileAgeStatsWindow.h	\
 	    FileSize.h			\
 	    FileTypeStatsWindow.h	\
+            FindFilesDialog.h           \
 	    FormatUtil.h		\
 	    History.h			\
 	    HistoryButtons.h		\
@@ -263,10 +271,11 @@ FORMS	  = main-window.ui		   \
 	    cleanup-config-page.ui	   \
 	    config-dialog.ui		   \
 	    exclude-rules-config-page.ui   \
+            find-files-dialog.ui           \
 	    file-age-stats-window.ui	   \
 	    file-details-view.ui	   \
 	    file-size-stats-window.ui	   \
-	    file-type-stats-window.ui	   \
+            file-type-stats-window.ui	   \
 	    filesystems-window.ui	   \
 	    general-config-page.ui	   \
 	    locate-file-type-window.ui	   \

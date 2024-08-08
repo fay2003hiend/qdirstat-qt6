@@ -10,6 +10,8 @@
 #include "DiscoverActions.h"
 #include "TreeWalker.h"
 #include "LocateFilesWindow.h"
+#include "FileSearchFilter.h"
+#include "DirInfo.h"
 #include "BusyPopup.h"
 #include "QDirStatApp.h"
 #include "Logger.h"
@@ -106,6 +108,31 @@ void DiscoverActions::discoverFiles( TreeWalker *    treeWalker,
                                      const QString & headingText,
                                      const QString & path         )
 {
+    ensureLocateFilesWindow( treeWalker );
+    FileInfo * sel = 0;
+
+    if ( ! path.isEmpty() )
+    {
+        sel = app()->dirTree()->locate( path,
+                                        true ); // findPseudoDirs
+    }
+
+    if ( ! sel )
+        sel = app()->selectedDirInfoOrRoot();
+
+    if ( sel )
+    {
+        if ( ! headingText.isEmpty() )
+            _locateFilesWindow->setHeading( headingText.arg( sel->url() ) );
+
+        _locateFilesWindow->populate( sel );
+        _locateFilesWindow->show();
+    }
+}
+
+
+void DiscoverActions::ensureLocateFilesWindow( TreeWalker * treeWalker )
+{
     if ( ! _locateFilesWindow )
     {
 	// This deletes itself when the user closes it. The associated QPointer
@@ -118,25 +145,24 @@ void DiscoverActions::discoverFiles( TreeWalker *    treeWalker,
     {
         _locateFilesWindow->setTreeWalker( treeWalker );
     }
+}
 
-    FileInfo * sel = 0;
 
-    if ( ! path.isEmpty() )
-    {
-        sel = app()->dirTree()->locate( path,
-                                        true ); // findPseudoDirs
-    }
+void DiscoverActions::findFiles( const FileSearchFilter & filter )
+{
+
+    ensureLocateFilesWindow( new FindFilesTreeWalker( filter ) );
+    FileInfo * sel = filter.subtree();
 
     if ( ! sel )
-        sel = app()->selectedDirOrRoot();
+        sel = app()->selectedDirInfoOrRoot();
 
     if ( sel )
     {
-        if ( ! headingText.isEmpty() )
-            _locateFilesWindow->setHeading( headingText.arg( sel->url() ) );
+        QString headingText = tr( "Search Results for \"%1\"" ).arg( filter.pattern() );
 
+        _locateFilesWindow->setHeading( headingText );
         _locateFilesWindow->populate( sel );
         _locateFilesWindow->show();
     }
 }
-

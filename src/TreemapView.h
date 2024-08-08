@@ -16,6 +16,7 @@
 #include <QGraphicsPathItem>
 #include <QList>
 
+#include "MimeCategorizer.h"
 #include "FileInfo.h"
 
 
@@ -23,13 +24,10 @@
 #define MaxAmbientLight		   200
 #define DefaultAmbientLight	   40
 
-#define MinHeightScalePercent	   10
-#define MaxHeightScalePercent	   200
 #define DefaultHeightScalePercent  100
 #define DefaultHeightScaleFactor   ( DefaultHeightScalePercent / 100.0 )
 
 #define DefaultMinTileSize	   3
-#define CushionHeight		   1.0
 
 
 class QMouseEvent;
@@ -59,6 +57,7 @@ namespace QDirStat
 	Q_OBJECT
 
     public:
+
 	/**
 	 * Constructor. Remember to set the directory tree with setDirTree()
 	 * and the selection model with setSelectionModel() after creating this
@@ -140,7 +139,8 @@ namespace QDirStat
 	 * Returns a suitable color for 'file' based on a set of internal rules
 	 * (according to filename extension, MIME type or permissions).
 	 **/
-	QColor tileColor( FileInfo * file );
+	QColor tileColor( FileInfo * file ) const
+		{ return _useFixedColor ? _fixedColor : MimeCategorizer::instance()->color( file ); }
 
 	/**
 	 * Use a fixed color for all tiles. To undo this, set an invalid QColor
@@ -449,12 +449,6 @@ namespace QDirStat
 	 **/
 	double lightZ() const { return _lightZ; }
 
-	/**
-	 * Returns cushion ridge height degradation factor (0 .. 1.0) for each
-	 * level of subdivision.
-	 **/
-	double heightScaleFactor() const { return _heightScaleFactor; }
-
 
     signals:
 
@@ -551,8 +545,6 @@ namespace QDirStat
 	double _lightX;
 	double _lightY;
 	double _lightZ;
-
-	double _heightScaleFactor;
 
     }; // class TreemapView
 

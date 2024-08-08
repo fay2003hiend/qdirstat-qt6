@@ -71,6 +71,19 @@ FileSize FileTypeStats::categorySum( MimeCategory * category ) const
 }
 
 
+int FileTypeStats::categoryNonSuffixRuleCount( MimeCategory * category ) const
+{
+    return _categoryNonSuffixRuleCount.value( category, 0 );
+
+}
+
+
+FileSize FileTypeStats::categoryNonSuffixRuleSum( MimeCategory * category ) const
+{
+    return _categoryNonSuffixRuleSum.value( category, 0LL );
+}
+
+
 MimeCategory * FileTypeStats::category( const QString & suffix ) const
 {
     return _mimeCategorizer->category( "x." + suffix );
@@ -140,41 +153,69 @@ void FileTypeStats::collect( FileInfo * dir )
 
 	    MimeCategory * category = _mimeCategorizer->category( item->name(), &suffix );
 
-	    if ( ! category )
-		category = _otherCategory;
+            if ( category )
+            {
+                addCategorySum( category, item );
 
-	    _categorySum[ category ] += item->size();
-	    ++_categoryCount[ category ];
+                if ( suffix.isEmpty() )
+                    addNonSuffixRuleSum( category, item );
+                else
+                    addSuffixSum( suffix, item );
+            }
+            else // ! category
+            {
+                addCategorySum( _otherCategory, item );
 
-	    if ( suffix.isEmpty() )
-	    {
-		if ( item->name().contains( '.' ) && ! item->name().startsWith( '.' ) )
-		{
-		    // Fall back to the last (i.e. the shortest) suffix if the
-		    // MIME categorizer didn't know it: Use section -1 (the
-		    // last one, ignoring any trailing '.' separator).
-		    //
-		    // The downside is that this would not find a ".tar.bz",
-		    // but just the ".bz" for a compressed tarball. But it's
-		    // much better than getting a ".eab7d88df-git.deb" rather
-		    // than a ".deb".
+                if ( suffix.isEmpty() )
+                {
+                    if ( item->name().contains( '.' ) && ! item->name().startsWith( '.' ) )
+                    {
+                        // Fall back to the last (i.e. the shortest) suffix if the
+                        // MIME categorizer didn't know it: Use section -1 (the
+                        // last one, ignoring any trailing '.' separator).
+                        //
+                        // The downside is that this would not find a ".tar.bz",
+                        // but just the ".bz" for a compressed tarball. But it's
+                        // much better than getting a ".eab7d88df-git.deb" rather
+                        // than a ".deb".
 
-		    suffix = item->name().section( '.', -1 );
-		}
-	    }
+                        suffix = item->name().section( '.', -1 );
+                    }
+                }
 
-	    suffix = suffix.toLower();
+                suffix = suffix.toLower();
 
-	    if ( suffix.isEmpty() )
-		suffix = NO_SUFFIX;
+                if ( suffix.isEmpty() )
+                    suffix = NO_SUFFIX;
 
-	    _suffixSum[ suffix ] += item->size();
-	    ++_suffixCount[ suffix ];
-	}
-	// Disregard symlinks, block devices and other special files
+                addSuffixSum( suffix, item );
+            }
+            // Disregard symlinks, block devices and other special files
+        }
 
 	++it;
     }
+}
+
+
+void FileTypeStats::addCategorySum( MimeCategory * category, FileInfo * item )
+{
+    _categorySum[ category ] += item->size();
+    ++_categoryCount[ category ];
+}
+
+
+void FileTypeStats::addSuffixSum( const QString & suffix, FileInfo * item )
+{
+    _suffixSum[ suffix ] += item->size();
+    ++_suffixCount[ suffix ];
+}
+
+
+void FileTypeStats::addNonSuffixRuleSum( MimeCategory * category, FileInfo * item )
+{
+    _categoryNonSuffixRuleSum[ category ] += item->size();
+    ++_categoryNonSuffixRuleCount[ category ];
 }
 
 

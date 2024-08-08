@@ -145,7 +145,8 @@ void FileDetailsView::showDetails( FileInfo * file )
 	    // since it belongs to a package.
 
 	    setSystemFileWarningVisibility( true );
-	    _ui->filePackageLabel->setEnabled( true );
+	    setFilePkgBlockVisibility( true );
+            _ui->filePackageCaption->setEnabled( true );
 	    _ui->filePackageLabel->setText( pkg->name() );
 	}
 	else
@@ -207,9 +208,14 @@ void FileDetailsView::showFileInfo( FileInfo * file )
     setFileSizeLabel( _ui->fileSizeLabel, file );
     setFileAllocatedLabel( _ui->fileAllocatedLabel, file );
 
+    _ui->fileUserCaption->setEnabled( file->hasUid() );
+    _ui->fileGroupCaption->setEnabled( file->hasGid() );
+    _ui->filePermissionsCaption->setEnabled( file->hasPermissions() );
+
     _ui->fileUserLabel->setText( file->userName() );
     _ui->fileGroupLabel->setText( file->groupName() );
-    _ui->filePermissionsLabel->setText( formatPermissions( file->mode() ) );
+    _ui->filePermissionsLabel->setText( file->hasPermissions() ? formatPermissions( file->mode() ) : "" );
+
     _ui->fileMTimeLabel->setText( formatTime( file->mtime() ) );
 
     if ( ! file->isSparseFile() )
@@ -280,14 +286,14 @@ void FileDetailsView::showFilePkgInfo( FileInfo * file )
     {
 	setFilePkgBlockVisibility( isSystemFile );
 
-	    if ( isSystemFile )
-	    {
-		QString delayHint = QString( _pkgUpdateTimer->delayStage(), '.' );
-		_ui->filePackageLabel->setText( delayHint );
+        if ( isSystemFile )
+        {
+            QString delayHint = QString( _pkgUpdateTimer->delayStage(), '.' );
+            _ui->filePackageLabel->setText( delayHint );
 
-		_ui->filePackageCaption->setEnabled( true );
-		_pkgUpdateTimer->delayedRequest( file->url() );
-	    }
+            _ui->filePackageCaption->setEnabled( true );
+            _pkgUpdateTimer->delayedRequest( file->url() );
+        }
     }
     else // No supported package manager found
     {
@@ -412,9 +418,13 @@ void FileDetailsView::showDirNodeInfo( DirInfo * dir )
 	_ui->dirOwnSizeLabel->setVisible  ( dir->size() > 0 );
 	setLabel( _ui->dirOwnSizeLabel, dir->size() );
 
+        _ui->dirUserCaption->setEnabled( dir->hasUid() );
+        _ui->dirGroupCaption->setEnabled( dir->hasGid() );
+        _ui->dirPermissionsCaption->setEnabled( dir->hasPermissions() );
+
 	_ui->dirUserLabel->setText( dir->userName() );
 	_ui->dirGroupLabel->setText( dir->groupName() );
-	_ui->dirPermissionsLabel->setText( formatPermissions( dir->mode() ) );
+	_ui->dirPermissionsLabel->setText( dir->hasPermissions() ? formatPermissions( dir->mode() ) : "" );
 
 	_ui->dirMTimeCaption->setVisible( dir->mtime() > 0 );
 	_ui->dirMTimeLabel->setVisible	( dir->mtime() > 0);
@@ -592,7 +602,7 @@ void FileDetailsView::showSelectionSummary( const FileInfoSet & selectedItems )
 
     foreach ( FileInfo * item, sel )
     {
-	if ( item->isDir() )
+	if ( item->isDirInfo() )
 	{
 	    ++dirCount;
 	    subtreeFileCount += item->totalFiles();

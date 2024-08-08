@@ -79,48 +79,80 @@ void DirTreeView::contextMenu( const QPoint & pos )
     }
 
     DataColumn col  = DataColumns::fromViewCol( index.column() );
+    FileInfo * item = static_cast<FileInfo *>( index.internalPointer() );
+    CHECK_MAGIC( item );
 
     if ( col == SizeCol )
-	sizeContextMenu( pos, index );
+	sizeContextMenu( pos, item );
     else
-	actionContextMenu( pos );
+	actionContextMenu( pos, item );
 }
 
 
-void DirTreeView::actionContextMenu( const QPoint & pos )
+void DirTreeView::actionContextMenu( const QPoint & pos, FileInfo * item )
 {
     QMenu menu;
     QStringList actions;
+
+    // The first action should not be a destructive one like "move to trash":
+    // It's just too easy to select and execute the first action accidentially,
+    // especially on a laptop touchpad.
+
     actions << "actionGoUp"
-	    << "actionCopyPathToClipboard"
-	    << "---"
+            << "actionGoToToplevel"
+            << "---"
+            << "actionMoveToTrash"
+        ;
+
+    // Intentionally adding unconditionally, even if disabled
+    ActionManager::instance()->addActions( &menu, actions );
+
+
+    // User-defined cleanups
+
+    if ( _cleanupCollection )
+	_cleanupCollection->addEnabledToMenu( &menu );
+
+    // Less commonly used menu options
+    actions.clear();
+    actions << "---"
 	    << "actionRefreshSelected"
 	    << "actionReadExcludedDirectory"
 	    << "actionContinueReadingAtMountPoint"
-	    << "---"
-	    << "actionFileSizeStats"
-	    << "actionFileTypeStats"
-	    << "---"
-	    << "actionMoveToTrash"
-	;
+        ;
 
-    ActionManager::instance()->addActions( &menu, actions );
+    ActionManager::instance()->addEnabledActions( &menu, actions );
 
-    if ( _cleanupCollection && ! _cleanupCollection->isEmpty() )
+    // Submenu for the auxiliary views to keep the context menu short.
+    //
+    // Those actions are strictly speaking irrelevant in most cases, and so
+    // they should be omitted from a context menu. But here this serves for
+    // discoverability: Most users don't even know that it is an option to
+    // start any of those views from a subdirectory in the tree. As a
+    // compromise to keep the context menu short, those auxiliary views go to a
+    // submenu of the context menu. Submenus in context menus are generally
+    // also discouraged, but here discoverability of these features is more
+    // important.
+
+    if ( item->isDirInfo() )    // Not for files, symlinks etc.
     {
-	menu.addSeparator();
-	_cleanupCollection->addToMenu( &menu );
+        QMenu * subMenu = menu.addMenu( tr( "View in" ) );
+
+        actions.clear();
+        actions << "actionFileSizeStats"
+                << "actionFileTypeStats"
+                << "actionFileAgeStats"
+            ;
+
+        ActionManager::instance()->addActions( subMenu, actions );
     }
 
     menu.exec( mapToGlobal( pos ) );
 }
 
 
-void DirTreeView::sizeContextMenu( const QPoint & pos, const QModelIndex & index )
+void DirTreeView::sizeContextMenu( const QPoint & pos, FileInfo * item )
 {
-    FileInfo * item = static_cast<FileInfo *>( index.internalPointer() );
-    CHECK_MAGIC( item );
-
     if ( item->totalSize() >= 1024 ||
          item->totalAllocatedSize() > item->totalSize() )
     {

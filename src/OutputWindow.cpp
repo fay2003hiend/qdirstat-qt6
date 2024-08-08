@@ -390,9 +390,7 @@ void OutputWindow::killAll()
 #if 0
 void OutputWindow::setTerminalBackground( const QColor & newColor )
 {
-    // TO DO
-    // TO DO
-    // TO DO
+    // Not implemented
 }
 #endif
 
@@ -530,6 +528,8 @@ void OutputWindow::readSettings()
     settings.endGroup();
 
     _ui->terminal->setFont( _terminalDefaultFont );
+
+    QDirStat::readWindowSettings( this, "OutputWindow" );
 }
 
 
@@ -546,4 +546,6 @@ void OutputWindow::writeSettings()
     settings.setValue( "DefaultShowTimeoutMillisec", _defaultShowTimeout  );
 
     settings.endGroup();
+
+    QDirStat::writeWindowSettings( this, "OutputWindow" );
 }

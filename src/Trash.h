@@ -10,9 +10,8 @@
 #ifndef Trash_h
 #define Trash_h
 
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include <sys/types.h>  // dev_t
+
 #include <QObject>
 #include <QMap>
 
@@ -47,6 +46,8 @@ public:
     /**
      * Restore a file or directory from the trash to its original location.
      * Return 'true' on success, 'false' on error.
+     *
+     * This is currently not implemented; this function does nothing.
      **/
     static bool restore( const QString & path );
 
@@ -57,6 +58,8 @@ public:
      * this class, but everything in all known trash directories, i.e. all
      * trash directories that were used during the life time of the singleton
      * of this class.
+     *
+     * This is currently not implemented; this function does nothing.
      **/
     static void empty();
 

@@ -28,6 +28,12 @@ namespace QDirStat
      * directory tree; this class fills those stubs with life.
      *
      * @short directory item within a DirTree.
+     *
+     * Important derived classes:
+     *
+     * - DotEntry  to collect direct file children of a directory
+     * - Attic     to collect ignored children
+     * - PkgInfo   for a software package
      **/
     class DirInfo: public FileInfo
     {
@@ -50,6 +56,9 @@ namespace QDirStat
 		 const QString & filenameWithoutPath,
 		 mode_t		 mode,
 		 FileSize	 size,
+                 bool            withUidGidPerm,
+                 uid_t           uid,
+                 gid_t           gid,
 		 time_t		 mtime );
 
 	/**
@@ -548,6 +557,15 @@ namespace QDirStat
 	 **/
 	void recalc();
 
+        /**
+         * Return 'true' if this child is a dominant one among its siblings,
+         * i.e. if its total size is much larger than the other items on the
+         * same level.
+         *
+         * This may trigger some calculations that may be cached.
+         **/
+        bool isDominantChild( FileInfo * child );
+
 
     protected:
 
@@ -564,6 +582,11 @@ namespace QDirStat
 	 * children.
 	 **/
 	virtual void cleanupAttics();
+
+        /**
+         * Populate the _dominantChildren list.
+         **/
+        void findDominantChildren();
 
 
 	//
@@ -600,6 +623,7 @@ namespace QDirStat
 	time_t		_oldestFileMtime;
 
 	FileInfoList *	_sortedChildren;
+        FileInfoList *  _dominantChildren;
 	DataColumn	_lastSortCol;
 	Qt::SortOrder	_lastSortOrder;
 	bool		_lastIncludeAttic;

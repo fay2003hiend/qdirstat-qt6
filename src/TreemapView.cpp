@@ -7,6 +7,7 @@
  */
 
 
+#include <QElapsedTimer>
 #include <QResizeEvent>
 #include <QRegExp>
 #include <QTimer>
@@ -14,17 +15,18 @@
 #include "TreemapView.h"
 #include "DirTree.h"
 #include "DirInfo.h"
+#include "FormatUtil.h"
 #include "SelectionModel.h"
 #include "Settings.h"
 #include "SettingsHelpers.h"
 #include "SignalBlocker.h"
 #include "TreemapTile.h"
-#include "MimeCategorizer.h"
 #include "DelayedRebuilder.h"
 #include "Exception.h"
 #include "Logger.h"
 
-#define UpdateMinSize	      20
+#define REBUILD_STOPWATCH       0
+#define UpdateMinSize	        20
 
 using namespace QDirStat;
 
@@ -60,8 +62,8 @@ TreemapView::TreemapView( QWidget * parent ):
     // Default values for light sources taken from Wiik / Wetering's paper
     // about "cushion treemaps".
 
-    _lightX = 0.09759;
-    _lightY = 0.19518;
+    _lightX = -0.09759;
+    _lightY = -0.19518;
     _lightZ = 0.9759;
 
     setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
@@ -92,6 +94,7 @@ void TreemapView::clear()
     _currentItem     = 0;
     _currentItemRect = 0;
     _rootTile	     = 0;
+    _newRoot         = 0;
     _sceneMask       = 0;
     _parentHighlightList.clear();
 }
@@ -169,7 +172,6 @@ void TreemapView::readSettings()
     settings.beginGroup( "Treemaps" );
 
     _ambientLight	= settings.value( "AmbientLight"     , DefaultAmbientLight ).toInt();
-    _heightScaleFactor	= settings.value( "HeightScaleFactor", DefaultHeightScaleFactor ).toDouble();
     _squarify		= settings.value( "Squarify"	     , true  ).toBool();
     _doCushionShading	= settings.value( "CushionShading"   , true  ).toBool();
     _enforceContrast	= settings.value( "EnforceContrast"  , false ).toBool();
@@ -198,7 +200,6 @@ void TreemapView::writeSettings()
     settings.beginGroup( "Treemaps" );
 
     settings.setValue( "AmbientLight"	   , _ambientLight	 );
-    settings.setValue( "HeightScaleFactor" , _heightScaleFactor	 );
     settings.setValue( "Squarify"	   , _squarify		 );
     settings.setValue( "CushionShading"	   , _doCushionShading	 );
     settings.setValue( "EnforceContrast"   , _enforceContrast	 );
@@ -354,11 +355,22 @@ void TreemapView::rebuildTreemap( FileInfo *	 newRoot,
 
 	if ( newRoot )
 	{
+#if REBUILD_STOPWATCH
+            QElapsedTimer stopwatch;
+	    stopwatch.start();
+#endif
+
 	    _rootTile = new TreemapTile( this,		// parentView
 					 0,		// parentTile
 					 newRoot,	// orig
 					 rect,
 					 TreemapAuto );
+
+#if REBUILD_STOPWATCH
+            logDebug() << "Treemap finished after "
+                       << formatMillisec( stopwatch.elapsed() )
+                       << Qt::endl;
+#endif
 	}
 
 
@@ -388,7 +400,11 @@ void TreemapView::scheduleRebuildTreemap( FileInfo * newRoot )
 
 void TreemapView::rebuildTreemapDelayed()
 {
-    rebuildTreemap( _newRoot );
+    if ( ! _newRoot )
+        _newRoot = _tree->firstToplevel();
+
+    if ( _newRoot )
+        rebuildTreemap( _newRoot );
 }
 
 
@@ -624,7 +640,7 @@ TreemapTile * TreemapView::findTile( const FileInfo * fileInfo )
     if ( ! fileInfo || ! scene() )
 	return 0;
 
-    foreach ( QGraphicsItem * graphicsItem, scene()->items() )
+    foreach ( QGraphicsItem *graphicsItem, scene()->items() )
     {
 	TreemapTile * tile = dynamic_cast<TreemapTile *>(graphicsItem);
 
@@ -649,37 +665,6 @@ void TreemapView::setFixedColor( const QColor & color )
 {
     _fixedColor	   = color;
     _useFixedColor = _fixedColor.isValid();
-}
-
-
-QColor TreemapView::tileColor( FileInfo * file )
-{
-    if ( _useFixedColor )
-	return _fixedColor;
-
-    if ( file )
-    {
-	if ( file->isFile() )
-	{
-	    MimeCategory * category = MimeCategorizer::instance()->category( file );
-
-	    if ( category )
-		return category->color();
-	    else
-	    {
-		// Special case: Executables
-		if ( ( file->mode() & S_IXUSR  ) == S_IXUSR )
-		    return Qt::magenta;		// TO DO: Configurable
-	    }
-	}
-	else // Directories
-	{
-	    // TO DO
-	    return Qt::blue;
-	}
-    }
-
-    return Qt::white;
 }
 
 

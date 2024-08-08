@@ -52,7 +52,7 @@ void SelectionModel::clear()
 {
     _selectedItems.clear();
     _selectedItemsDirty = true;
-    _currentItem = 0;
+    _currentItem   = 0;
     _currentBranch = 0;
 
     clearSelection();
@@ -264,7 +264,7 @@ void SelectionModel::deletingChildNotify( FileInfo * deletedChild )
     _selectedItemsDirty = true;
     _selectedItems.clear();
 
-    if ( _currentItem->isInSubtree( deletedChild ) )
+    if ( _currentItem && _currentItem->isInSubtree( deletedChild ) )
 	setCurrentItem( 0 );
 }
 

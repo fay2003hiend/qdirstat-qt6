@@ -7,6 +7,8 @@
  */
 
 
+#include <QMessageBox>
+
 #include "CleanupConfigPage.h"
 #include "CleanupCollection.h"
 #include "Cleanup.h"
@@ -41,14 +43,17 @@ CleanupConfigPage::CleanupConfigPage( QWidget * parent ):
     setAddButton	 ( _ui->addButton	   );
     setRemoveButton	 ( _ui->removeButton	   );
 
-    connect( _ui->titleLineEdit, SIGNAL( textChanged ( QString ) ),
-	     this,		 SLOT  ( titleChanged( QString ) ) );
+    connect( _ui->titleLineEdit,         SIGNAL( textChanged ( QString ) ),
+	     this,		         SLOT  ( titleChanged( QString ) ) );
+
+    connect( _ui->refreshPolicyComboBox, SIGNAL( currentIndexChanged ( int ) ),
+             this,                       SLOT  ( refreshPolicyChanged( int ) ) );
 }
 
 
 CleanupConfigPage::~CleanupConfigPage()
 {
-    // logDebug() << "CleanupConfigPage destructor" << endl;
+    // logDebug() << "CleanupConfigPage destructor" << Qt::endl;
     delete _ui;
 }
 
@@ -69,7 +74,7 @@ void CleanupConfigPage::setup()
 
 void CleanupConfigPage::applyChanges()
 {
-    // logDebug() << endl;
+    // logDebug() << Qt::endl;
 
     save( value( listWidget()->currentItem() ) );
     _cleanupCollection->writeSettings();
@@ -78,7 +83,7 @@ void CleanupConfigPage::applyChanges()
 
 void CleanupConfigPage::discardChanges()
 {
-    // logDebug() << endl;
+    // logDebug() << Qt::endl;
 
     listWidget()->clear();
     _cleanupCollection->clear();
@@ -119,10 +124,27 @@ void CleanupConfigPage::titleChanged( const QString & newTitle )
 }
 
 
+void CleanupConfigPage::refreshPolicyChanged( int index )
+{
+    _ui->recurseCheckBox->setEnabled( index != Cleanup::AssumeDeleted );
+
+    if ( index == Cleanup::AssumeDeleted && _ui->recurseCheckBox->isChecked() )
+    {
+        // See issue #251
+
+        QMessageBox::warning( this, tr( "Error" ),
+                              tr( "Recursive operation cannot be used with\n"
+                                  "refresh policy \"Assume Deleted\"." ) );
+
+        _ui->recurseCheckBox->setChecked( false );
+    }
+}
+
+
 void CleanupConfigPage::save( void * value )
 {
     Cleanup * cleanup = CLEANUP_CAST( value );
-    // logDebug() << cleanup << endl;
+    // logDebug() << cleanup << Qt::endl;
 
     if ( ! cleanup || updatesLocked() )
 	return;
@@ -163,7 +185,7 @@ void CleanupConfigPage::save( void * value )
 void CleanupConfigPage::load( void * value )
 {
     Cleanup * cleanup = CLEANUP_CAST( value );
-    // logDebug() << cleanup << endl;
+    // logDebug() << cleanup << Qt::endl;
 
     if ( ! cleanup || updatesLocked() )
 	return;

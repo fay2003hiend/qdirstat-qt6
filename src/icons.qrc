@@ -3,6 +3,8 @@
 	<file>icons/qdirstat.svg</file>
 	<file>icons/qdirstat.png</file>
 	<file>icons/add.png</file>
+	<file>icons/bookmark.png</file>
+	<file>icons/bookmark-off.png</file>
 	<file>icons/delete.png</file>
 	<file>icons/dialog-information.png</file>
 	<file>icons/dialog-warning.png</file>
@@ -16,7 +18,9 @@
 	<file>icons/go-right.png</file>
 	<file>icons/go-top.png</file>
 	<file>icons/go-up.png</file>
+	<file>icons/hamburger.svg</file>
 	<file>icons/hard-disk.png</file>
+	<file>icons/48x48/home-dir.png</file>
 	<file>icons/lock-closed.png</file>
 	<file>icons/open-dir.png</file>
 	<file>icons/preferences.png</file>

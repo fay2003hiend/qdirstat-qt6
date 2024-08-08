@@ -58,7 +58,8 @@ PathSelectorItem * PathSelector::addPath( const QString & path,
 
 PathSelectorItem * PathSelector::addHomeDir()
 {
-    QIcon icon = _iconProvider.icon( QFileIconProvider::Folder );
+    // QIcon icon = _iconProvider.icon( QFileIconProvider::Folder );
+    QIcon icon( ":/icons/48x48/home-dir.png" );
     PathSelectorItem * item = addPath( QDir::homePath(), icon );
     item->setToolTip( tr( "Your home directory" ) );
 
@@ -110,7 +111,7 @@ void PathSelector::slotItemSelected( QListWidgetItem * origItem )
 
     if ( item )
     {
-	// logVerbose() << "Selected path " << item->path() << endl;
+	// logVerbose() << "Selected path " << item->path() << Qt::endl;
 	emit pathSelected( item->path() );
     }
 }
@@ -122,7 +123,7 @@ void PathSelector::slotItemDoubleClicked( QListWidgetItem * origItem )
 
     if ( item )
     {
-	// logVerbose() << "Double-clicked path " << item->path() << endl;
+	// logVerbose() << "Double-clicked path " << item->path() << Qt::endl;
 	emit pathDoubleClicked( item->path() );
     }
 }
@@ -148,7 +149,7 @@ void PathSelector::selectParentMountPoint( const QString & wantedPath )
 
     if ( bestMatch )
     {
-        // logDebug() << "Best match: " << bestMatch->path() << endl;;
+        // logDebug() << "Best match: " << bestMatch->path() << Qt::endl;;
         setCurrentItem( bestMatch );
     }
 }

@@ -6,9 +6,6 @@
  *   Author:	Stefan Hundhammer <Stefan.Hundhammer@gmx.de>
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #include "PkgReader.h"
 #include "PkgQuery.h"
@@ -21,8 +18,9 @@
 #include "Exception.h"
 
 #include <QRegularExpression>
-
 using namespace QDirStat;
+
+bool PkgReader::_verboseMissingPkgFiles = false;
 
 
 PkgReader::PkgReader( DirTree * tree ):
@@ -273,8 +271,9 @@ void PkgReader::readSettings()
     Settings settings;
     settings.beginGroup( "Pkg" );
 
-    _maxParallelProcesses = settings.value( "MaxParallelProcesses",  6 ).toInt();
-    _minCachePkgListSize  = settings.value( "MinCachePkgListSize", 200 ).toInt();
+    _maxParallelProcesses   = settings.value( "MaxParallelProcesses"  ,  6    ).toInt();
+    _minCachePkgListSize    = settings.value( "MinCachePkgListSize"   , 200   ).toInt();
+    _verboseMissingPkgFiles = settings.value( "VerboseMissingPkgFiles", false ).toBool();
 
     settings.endGroup();
 }
@@ -285,8 +284,9 @@ void PkgReader::writeSettings()
     Settings settings;
     settings.beginGroup( "Pkg" );
 
-    settings.setValue( "MaxParallelProcesses", _maxParallelProcesses );
-    settings.setValue( "MinCachePkgListSize" , _minCachePkgListSize  );
+    settings.setValue( "MaxParallelProcesses"  , _maxParallelProcesses   );
+    settings.setValue( "MinCachePkgListSize"   , _minCachePkgListSize    );
+    settings.setValue( "VerboseMissingPkgFiles", _verboseMissingPkgFiles );
 
     settings.endGroup();
 }
@@ -396,7 +396,18 @@ void PkgReadJob::addFile( const QString & fileListPath )
 
 	    if ( ! newParent )
 	    {
-		parent->setReadState( DirError );
+                if ( PkgReader::verboseMissingPkgFiles() )
+                {
+                    // Don't report a directory read error here:
+                    // A file that belongs to the package should be there, but is not.
+                    // The user might intentionally have deleted it for some reason;
+                    // just report that in the log.
+                    //
+                    // parent->setReadState( DirError );
+
+                    logWarning() << _pkg << ": missing: " << fileListPath << Qt::endl;
+                }
+
 		return;
 	    }
 

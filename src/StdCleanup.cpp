@@ -45,7 +45,7 @@ CleanupList StdCleanup::stdCleanups( QObject * parent )
 Cleanup * StdCleanup::openFileManagerHere( QObject * parent )
 {
     Cleanup *cleanup = new Cleanup( "%filemanager %d &",
-				    QObject::tr( "Open &File Manager Here" ),
+				    QObject::tr( "Open File &Manager Here" ),
 				    parent );
     CHECK_NEW( cleanup );
     cleanup->setWorksForDir	( true );
@@ -53,7 +53,7 @@ Cleanup * StdCleanup::openFileManagerHere( QObject * parent )
     cleanup->setWorksForDotEntry( true );
     cleanup->setRefreshPolicy( Cleanup::NoRefresh );
     cleanup->setIcon( ":/icons/file-manager.png" );
-    cleanup->setShortcut( Qt::CTRL + Qt::Key_F );
+    cleanup->setShortcut( Qt::CTRL + Qt::Key_G );
     cleanup->setOutputWindowPolicy( Cleanup::ShowNever );
 
     return cleanup;
@@ -113,7 +113,7 @@ Cleanup * StdCleanup::compressSubtree( QObject * parent )
 Cleanup * StdCleanup::makeClean( QObject * parent )
 {
     Cleanup *cleanup = new Cleanup( "make clean",
-				    QObject::tr( "&make clean" ),
+				    QObject::tr( "make cl&ean" ),
 				    parent );
     CHECK_NEW( cleanup );
     cleanup->setWorksForDir	( true	);
@@ -128,7 +128,7 @@ Cleanup * StdCleanup::makeClean( QObject * parent )
 Cleanup * StdCleanup::gitClean( QObject * parent )
 {
     Cleanup *cleanup = new Cleanup( "git clean -dfx",
-				    QObject::tr( "&git clean" ),
+				    QObject::tr( "git cle&an" ),
 				    parent );
     CHECK_NEW( cleanup );
     cleanup->setWorksForDir	( true	);
@@ -145,7 +145,7 @@ Cleanup * StdCleanup::gitClean( QObject * parent )
 Cleanup * StdCleanup::deleteJunk( QObject * parent )
 {
     Cleanup *cleanup = new Cleanup( "rm -f *~ *.bak *.auto core",
-				    QObject::tr( "Delete &Junk Files" ),
+				    QObject::tr( "Delete J&unk Files" ),
 				    parent );
     CHECK_NEW( cleanup );
     cleanup->setWorksForDir	( true	);

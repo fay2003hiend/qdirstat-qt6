@@ -14,7 +14,8 @@
 #include "Logger.h"
 #include "Exception.h"
 
-#define MAX_RESULTS  200
+#define MAX_RESULTS              200
+#define MAX_FIND_FILES_RESULTS  1000
 
 
 using namespace QDirStat;
@@ -78,7 +79,7 @@ qreal TreeWalker::lowerPercentileThreshold( PercentileStats & stats )
 
 void LargestFilesTreeWalker::prepare( FileInfo * subtree )
 {
-
+    TreeWalker::prepare( subtree );
     FileSizeStats stats( subtree );
     _threshold = (FileSize) upperPercentileThreshold( stats );
 }
@@ -86,6 +87,7 @@ void LargestFilesTreeWalker::prepare( FileInfo * subtree )
 
 void NewFilesTreeWalker::prepare( FileInfo * subtree )
 {
+    TreeWalker::prepare( subtree );
     FileMTimeStats stats( subtree );
     _threshold = (time_t) upperPercentileThreshold( stats );
 }
@@ -93,6 +95,7 @@ void NewFilesTreeWalker::prepare( FileInfo * subtree )
 
 void OldFilesTreeWalker::prepare( FileInfo * subtree )
 {
+    TreeWalker::prepare( subtree );
     FileMTimeStats stats( subtree );
     _threshold = (time_t) lowerPercentileThreshold( stats );
 }
@@ -103,4 +106,42 @@ bool BrokenSymLinksTreeWalker::check( FileInfo * item )
     return item &&
         item->isSymLink() &&
         SysUtil::isBrokenSymLink( item->url() );
+}
+
+
+
+
+void FindFilesTreeWalker::prepare( FileInfo * subtree )
+{
+    TreeWalker::prepare( subtree );
+    _count = 0;
+}
+
+
+bool FindFilesTreeWalker::check( FileInfo * item )
+{
+    if ( _count >= MAX_FIND_FILES_RESULTS )
+    {
+        _overflow = true;
+
+        return false;
+    }
+
+    if ( ! item )
+        return false;
+
+    bool match = false;
+
+    if ( ( _filter.findDirs()     && item->isDir()     ) ||
+         ( _filter.findFiles()    && item->isFile()    ) ||
+         ( _filter.findSymLinks() && item->isSymLink() ) ||
+         ( _filter.findPkg()      && item->isPkgInfo() )   )
+    {
+        match = _filter.matches( item->name() );
+    }
+
+    if ( match )
+        ++_count;
+
+    return match;
 }

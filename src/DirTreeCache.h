@@ -11,12 +11,11 @@
 #define DirTreeCache_h
 
 
-#include <stdio.h>
-#include <zlib.h>
+#include <zlib.h>    // gzFile
 #include "DirTree.h"
 
+
 #define DEFAULT_CACHE_NAME	".qdirstat.cache.gz"
-#define CACHE_FORMAT_VERSION	"1.0"
 #define MAX_CACHE_LINE_LEN	1024
 #define MAX_FIELDS_PER_LINE	32
 
@@ -82,6 +81,7 @@ namespace QDirStat
 	// Data members
 	//
 
+        bool _withUidGuidPerm;
 	bool _ok;
     };
 
@@ -121,7 +121,7 @@ namespace QDirStat
 	bool eof();
 
 	/**
-	 * Returns true if writing the cache file went OK.
+	 * Returns true if reading the cache file went OK.
 	 **/
 	bool ok() const { return _ok; }
 
@@ -149,6 +149,12 @@ namespace QDirStat
 	 * Returns the tree associated with this reader.
 	 **/
 	DirTree * tree() const { return _tree; }
+
+        /**
+         * Return 'true' if the cache file format has UID, GID, permissions
+         * (cache file format 2.0 or later), 'false' otherwise.
+         **/
+        bool withUidGidPerm() const { return _withUidGidPerm; }
 
 	/**
 	 * Skip leading whitespace from a string.
@@ -289,6 +295,7 @@ namespace QDirStat
 	DirInfo *	_lastExcludedDir;
 	QString		_lastExcludedDirUrl;
         QRegExp         _multiSlash;
+        bool            _withUidGidPerm;
     };
 
 }	// namespace QDirStat

@@ -16,6 +16,7 @@
 #include "FileInfoSet.h"
 #include "SelectionModel.h"
 #include "CleanupCollection.h"
+#include "BookmarksManager.h"
 #include "MainWindow.h"
 #include "Logger.h"
 #include "Exception.h"
@@ -73,6 +74,9 @@ QDirStatApp::QDirStatApp()
 
     _cleanupCollection = new CleanupCollection( _selectionModel );
     CHECK_NEW( _cleanupCollection );
+
+    _bookmarksManager = new BookmarksManager();
+    CHECK_NEW( _bookmarksManager );
 }
 
 
@@ -80,6 +84,7 @@ QDirStatApp::~QDirStatApp()
 {
     // logDebug() << "Destroying app" << Qt::endl;
 
+    delete _bookmarksManager;
     delete _cleanupCollection;
     delete _selectionModel;
     delete _dirTreeModel;
@@ -107,18 +112,27 @@ QWidget * QDirStatApp::findMainWindow() const
 }
 
 
-FileInfo * QDirStatApp::selectedDirOrRoot() const
+FileInfo * QDirStatApp::root() const
 {
-    FileInfoSet selectedItems = app()->selectionModel()->selectedItems();
-    FileInfo * sel = selectedItems.first();
-
-    if ( ! sel || ! sel->isDir() )
-	sel = app()->dirTree()->firstToplevel();
-
-    return sel;
+    return dirTree() ? dirTree()->firstToplevel() : 0;
 }
 
 
+FileInfo * QDirStatApp::selectedDirInfo() const
+{
+    FileInfoSet selectedItems = selectionModel()->selectedItems();
+    FileInfo * sel = selectedItems.first();
+
+    return sel && sel->isDirInfo() ? sel : 0;
+}
+
+
+FileInfo * QDirStatApp::selectedDirInfoOrRoot() const
+{
+    FileInfo * sel = selectedDirInfo();
+
+    return sel ? sel : root();
+}
 
 
 QDirStatApp * QDirStat::app()

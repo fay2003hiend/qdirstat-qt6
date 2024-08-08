@@ -34,7 +34,7 @@ DirTree::DirTree():
     _excludeRules( 0 ),
     _beingDestroyed( false ),
     _haveClusterSize( false ),
-    _blocksPerCluster( 0 )
+    _blocksPerCluster( 1 )
 {
     _isBusy	      = false;
     _crossFilesystems = false;
@@ -81,11 +81,22 @@ void DirTree::setRoot( DirInfo *newRoot )
 
 FileInfo * DirTree::firstToplevel() const
 {
-    return _root ? _root->firstChild() : 0;
+    if ( ! _root )
+        return 0;
+
+    FileInfo * result = _root->firstChild();
+
+    if ( ! result )
+        result = _root->attic();
+
+    if ( ! result )
+        result = _root->dotEntry();
+
+    return result;
 }
 
 
-bool DirTree::isTopLevel( FileInfo *item ) const
+bool DirTree::isToplevel( FileInfo *item ) const
 {
     return item && item->parent() && ! item->parent()->parent();
 }
@@ -109,7 +120,7 @@ void DirTree::clear()
 
     _isBusy	      = false;
     _haveClusterSize  = false;
-    _blocksPerCluster = 0;
+    _blocksPerCluster = 1;
     _device.clear();
 }
 
@@ -253,7 +264,10 @@ void DirTree::finalizeTree()
 	recalc( _root );
 	ignoreEmptyDirs( _root );
 	recalc( _root );
-	moveIgnoredToAttic( _root );
+
+        if ( _root->firstChild() )
+            moveIgnoredToAttic( _root->firstChild()->toDirInfo() );
+
 	recalc( _root );
     }
 }
@@ -444,11 +458,19 @@ bool DirTree::writeCache( const QString & cacheFileName )
 }
 
 
-void DirTree::readCache( const QString & cacheFileName )
+bool DirTree::readCache( const QString & cacheFileName )
 {
+    CacheReader * reader = new CacheReader( cacheFileName, this, 0 );
+    CHECK_NEW( reader );
+
+    if ( ! reader->ok() )
+        return false;
+
     _isBusy = true;
     emit startingReading();
     addJob( new CacheReadJob( this, 0, cacheFileName ) );
+
+    return true;
 }
 
 
@@ -525,7 +547,8 @@ bool DirTree::checkIgnoreFilters( const QString & path )
 
 void DirTree::moveIgnoredToAttic( DirInfo * dir )
 {
-    CHECK_PTR( dir );
+    if ( ! dir )
+        return;
 
     if ( dir->totalIgnoredItems() == 0 && dir->totalUnignoredItems() > 0 )
 	return;
@@ -545,8 +568,7 @@ void DirTree::moveIgnoredToAttic( DirInfo * dir )
 	}
 	else
 	{
-	    if ( child->isDirInfo() )
-		moveIgnoredToAttic( child->toDirInfo() );
+            moveIgnoredToAttic( child->toDirInfo() );
 	}
 
 	child = child->next();

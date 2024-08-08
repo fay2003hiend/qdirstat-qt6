@@ -7,7 +7,7 @@
  */
 
 
-#include <algorithm>
+#include <algorithm>    // std::stable_sort()
 
 #include "DirInfo.h"
 #include "DirTree.h"
@@ -15,11 +15,18 @@
 #include "Attic.h"
 #include "FileInfoIterator.h"
 #include "FileInfoSorter.h"
-#include "ExcludeRules.h"
+#include "FormatUtil.h"
 #include "Exception.h"
 #include "DebugHelpers.h"
 
-#define DIRECT_CHILDREN_COUNT_SANITY_CHECK 0
+// How many times the standard deviation from the average is considered dominant
+#define DOMINANCE_FACTOR                         5.0
+#define DOMINANCE_MIN_PERCENT                    3.0
+#define DOMINANCE_MAX_PERCENT                   70.0
+#define DOMINANCE_ITEM_COUNT                    30
+
+#define VERBOSE_DOMINANCE_CHECK                 0
+#define DIRECT_CHILDREN_COUNT_SANITY_CHECK      0
 
 using namespace QDirStat;
 
@@ -54,12 +61,18 @@ DirInfo::DirInfo( DirTree *	  tree,
 		  const QString & filenameWithoutPath,
 		  mode_t	  mode,
 		  FileSize	  size,
+                  bool            withUidGidPerm,
+                  uid_t           uid,
+                  gid_t           gid,
 		  time_t	  mtime )
     : FileInfo( tree,
 		parent,
 		filenameWithoutPath,
 		mode,
 		size,
+                withUidGidPerm,
+                uid,
+                gid,
 		mtime )
 {
     init();
@@ -96,6 +109,7 @@ void DirInfo::init()
     _oldestFileMtime	 = 0;
     _readState		 = DirQueued;
     _sortedChildren	 = 0;
+    _dominantChildren    = 0;
     _lastSortCol	 = UndefinedCol;
     _lastSortOrder	 = Qt::AscendingOrder;
 }
@@ -182,6 +196,8 @@ void DirInfo::deleteEmptyDotEntry()
 {
     if ( ! _dotEntry->firstChild() && ! _dotEntry->hasAtticChildren() )
     {
+        // logDebug() << "Deleting dot entry for " << this << Qt::endl;
+
 	delete _dotEntry;
 	_dotEntry = 0;
 
@@ -208,6 +224,8 @@ void DirInfo::deleteEmptyAttic()
 {
     if ( _attic && ! _attic->firstChild() )
     {
+        // logDebug() << "Deleting attic for " << this << Qt::endl;
+
 	delete _attic;
 	_attic = 0;
     }
@@ -1088,6 +1106,12 @@ void DirInfo::dropSortCache( bool recursive )
 		_attic->dropSortCache( recursive );
 	}
     }
+
+    if ( _dominantChildren )
+    {
+        delete _dominantChildren;
+        _dominantChildren = 0;
+    }
 }
 
 
@@ -1128,5 +1152,77 @@ void DirInfo::takeAllChildren( DirInfo * oldParent )
 	}
 
 	lastChild->setNext( oldFirstChild );
+    }
+}
+
+
+bool DirInfo::isDominantChild( FileInfo * child )
+{
+    if ( ! _dominantChildren )
+        findDominantChildren();
+
+    if ( _dominantChildren && _dominantChildren->contains( child ) )
+        return true;
+    else
+        return false;
+}
+
+
+void DirInfo::findDominantChildren()
+{
+    if ( ! _sortedChildren )
+        return;
+
+    switch ( _lastSortCol )
+    {
+        // Only if sorting by size or percent
+        case PercentBarCol:
+        case PercentNumCol:
+        case SizeCol:
+            break;
+
+        default:
+            return;
+    }
+
+    if ( _lastSortOrder != Qt::DescendingOrder )
+        return;
+
+    if ( _dominantChildren )
+        delete _dominantChildren;
+
+    _dominantChildren = new FileInfoList();
+    CHECK_NEW( _dominantChildren );
+
+    qreal count = qMin( _sortedChildren->size(), 30 );
+
+    if ( count < 2 )
+        return;
+
+    qreal medianPercent      = _sortedChildren->at( count / 2 )->subtreeAllocatedPercent();
+    qreal dominanceThreshold = qBound( DOMINANCE_MIN_PERCENT,
+                                       DOMINANCE_FACTOR * medianPercent,
+                                       DOMINANCE_MAX_PERCENT );
+
+#if VERBOSE_DOMINANCE_CHECK
+    logDebug() << this
+               << "  median: "    << formatPercent( medianPercent )
+               << "  threshold: " << formatPercent( FileSize( dominanceThreshold ) )
+               << Qt::endl;
+#endif
+
+
+    // Add the children that are larger to the dominant children
+
+    for ( int i=0; i < count; ++i )
+    {
+        FileInfo * child        = _sortedChildren->at( i );
+        qreal      childPercent = child->subtreeAllocatedPercent();
+
+        if ( childPercent < dominanceThreshold )
+            break;
+
+        _dominantChildren->append( child );
+        // logDebug() << "Adding " << child->name() << ":\t\t" << formatPercent( childPercent ) << Qt::endl;
     }
 }

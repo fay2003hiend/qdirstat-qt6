@@ -7,19 +7,17 @@
  */
 
 
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <dirent.h>     // struct dirent
 #include <fcntl.h>	// AT_ constants (fstatat() flags)
-#include <unistd.h>
-#include <stdio.h>
+#include <unistd.h>     // R_OK, X_OK
 
 #include <QMutableListIterator>
 #include <QMultiMap>
 
 #include "DirReadJob.h"
 #include "DirTree.h"
+#include "DirInfo.h"
 #include "DirTreeCache.h"
-#include "Attic.h"
 #include "ExcludeRules.h"
 #include "MountPoints.h"
 #include "Exception.h"
@@ -171,8 +169,14 @@ bool DirReadJob::shouldCrossIntoFilesystem( const DirInfo * dir ) const
 {
     MountPoint * mountPoint = MountPoints::findByPath( dir->url() );
 
+    if ( ! mountPoint )
+    {
+        logError() << "Can't find mount point for " << dir->url() << Qt::endl;
+
+        return false;
+    }
+
     bool doCross =
-        mountPoint                     &&
 	! mountPoint->isSystemMount()  &&	//  /dev, /proc, /sys, ...
 	! mountPoint->isDuplicate()    &&	//  bind mount or multiple mounted
 	! mountPoint->isNetworkMount();		//  NFS or CIFS (Samba)
@@ -465,7 +469,7 @@ bool LocalDirReadJob::readCacheFile( const QString & cacheFileName )
 	DirTree * tree = _tree;	 // Copy data members to local variables:
 	DirInfo * dir  = _dir;	 // This object might be deleted soon by killAll()
 
-	if ( _tree->isTopLevel( _dir ) )
+	if ( _tree->isToplevel( _dir ) )
 	{
 	    logDebug() << "Clearing complete tree" << Qt::endl;
 
@@ -537,6 +541,7 @@ void LocalDirReadJob::handleLstatError( const QString & entryName )
     DirInfo *child = new DirInfo( _tree, _dir, entryName,
 				  0,   // mode
 				  0,   // size
+                                  false, 0, 0,  // withUidGid, uid, gid
 				  0 ); // mtime
     CHECK_NEW( child );
     child->finalizeLocal();
@@ -582,7 +587,7 @@ FileInfo * LocalDirReadJob::stat( const QString & url,
 		parent->insertChild( dir );
 
 	    if ( dir && parent &&
-		 ! tree->isTopLevel( dir ) &&
+		 ! tree->isToplevel( dir ) &&
 		 ! parent->isPkgInfo() &&
 		 dir->device() != parent->device() )
 	    {
@@ -685,8 +690,7 @@ CacheReadJob::~CacheReadJob()
 }
 
 
-void
-CacheReadJob::read()
+void CacheReadJob::read()
 {
     /*
      * This will be called repeatedly from DirTree::timeSlicedRead() until
@@ -694,7 +698,10 @@ CacheReadJob::read()
      */
 
     if ( ! _reader )
+    {
 	finished();
+        return;
+    }
 
     // logDebug() << "Reading 1000 cache lines" << Qt::endl;
     _reader->read( 1000 );
@@ -833,7 +840,9 @@ void DirReadJobQueue::killAll( DirInfo * subtree, DirReadJob * exceptJob )
 
 void DirReadJobQueue::timeSlicedRead()
 {
-    if ( ! _queue.isEmpty() )
+    if ( _queue.isEmpty() )
+	_timer.stop();
+    else
 	_queue.first()->read();
 }
 
@@ -850,14 +859,8 @@ void DirReadJobQueue::jobFinishedNotify( DirReadJob *job )
 
     // The timer will start a new job when it fires.
 
-    if ( _queue.isEmpty() )	// No new job available - we're done.
-    {
-	_timer.stop();
-	// logDebug() << "No more jobs - finishing" << Qt::endl;
-
-	if ( _blocked.isEmpty() )
-	    emit finished();
-    }
+    if ( _queue.isEmpty() && _blocked.isEmpty() )	// No new job available - we're done.
+	emit finished();
 }
 
 

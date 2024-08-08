@@ -39,6 +39,7 @@
 using namespace QDirStat;
 
 
+bool OpenDirDialog::_firstRun         = true;
 bool OpenDirDialog::_crossFilesystems = false;
 
 
@@ -55,6 +56,7 @@ OpenDirDialog::OpenDirDialog( QWidget * parent ):
 
     initPathComboBox();
     initDirTree();
+    readSettings();
 
     _ui->crossFilesystemsCheckBox->setChecked( _crossFilesystems );
 
@@ -62,7 +64,6 @@ OpenDirDialog::OpenDirDialog( QWidget * parent ):
     CHECK_PTR( _okButton );
 
     initConnections();
-    readSettings();
 
     _ui->pathComboBox->setFocus();
     QTimer::singleShot( 200, this, SLOT( initialSelection() ) );
@@ -188,7 +189,6 @@ void OpenDirDialog::setPath( const QString & path )
 
     populatePathComboBox( path );
     qSetComboBoxText( _ui->pathComboBox, path );
-    _ui->pathSelector->selectParentMountPoint( path );
     QModelIndex index = _filesystemModel->index( path );
     _ui->dirTreeView->setCurrentIndex( index );
     _ui->dirTreeView->scrollTo( index );
@@ -296,17 +296,22 @@ void OpenDirDialog::readSettings()
     Settings settings;
     // logDebug() << Qt::endl;
 
-    // Initialize the static _crossFilesystems flag from the corresponding
-    // setting from the config dialog
+    if ( _firstRun )
+    {
+        // Initialize the static _crossFilesystems flag from the corresponding
+        // setting from the config dialog
 
-    settings.beginGroup( "DirectoryTree" );
-    _crossFilesystems = settings.value( "CrossFilesystems", false ).toBool();
-    settings.endGroup();
+        settings.beginGroup( "DirectoryTree" );
+        _crossFilesystems = settings.value( "CrossFilesystems", false ).toBool();
+        settings.endGroup();
+
+        _firstRun = false;
+    }
 
     readWindowSettings( this, "OpenDirDialog" );
 
     settings.beginGroup( "OpenDirDialog" );
-    QByteArray mainSplitterState = settings.value( "MainSplitter" , QByteArray() ).toByteArray();
+    QByteArray mainSplitterState = settings.value( "MainSplitter", QByteArray() ).toByteArray();
     settings.endGroup();
 
     if ( ! mainSplitterState.isNull() )
